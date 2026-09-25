@@ -3,7 +3,23 @@
 import asyncio
 import os
 import json
-from typing import Any
+import time
+
+from .errors import ToolError
+from .runtime import decode_output, env_timeout
+
+# 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
+_POWER_MODULES = {"Power"}
+_LONG_MODULES = {"VMTemplate"}
+_LONG_COMMANDS = {"Clone", "Create", "Extend", "Upgrade", "Install"}
+
+
+def _timeout_for(module: str, command: str) -> float:
+    if module in _POWER_MODULES:
+        return env_timeout("VMWARE_TIMEOUT_POWER", 90.0)
+    if module in _LONG_MODULES or command in _LONG_COMMANDS:
+        return env_timeout("VMWARE_TIMEOUT_LONG", 600.0)
+    return env_timeout("VMWARE_TIMEOUT_QUERY", 30.0)
 
 
 class VMCli:
@@ -15,25 +31,47 @@ class VMCli:
             r"C:\Program Files (x86)\VMware\VMware Workstation\vmcli.exe"
         )
 
-    async def _run(self, vmx_path: str | None, module: str, command: str, *args: str) -> str:
+    async def _run(self, vmx_path: str | None, module: str, command: str, *args: str, timeout: float | None = None) -> str:
         cmd = [self.vmcli_path]
         if vmx_path:
             cmd.append(vmx_path)
         cmd.extend([module, command])
         cmd.extend(args)
 
+        limit = timeout or _timeout_for(module, command)
+        started = time.monotonic()
+        # stdin 接 DEVNULL：vmcli 等输入时立即报错退出，而不是继承 MCP 服务端的 stdio 管道挂死
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise ToolError(
+                f"vmcli {module} {command} timed out after {limit:g}s, process killed",
+                timeout=True,
+                duration_ms=int((time.monotonic() - started) * 1000),
+                hint="长任务可用 VMWARE_TIMEOUT_LONG 提高上限",
+            )
+        duration_ms = int((time.monotonic() - started) * 1000)
+        out = decode_output(stdout)
+        err = decode_output(stderr)
 
         if proc.returncode != 0:
-            error_msg = stderr.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(f"vmcli failed: {error_msg}")
+            raise ToolError(
+                f"vmcli failed: {err.strip()}",
+                exit_code=proc.returncode,
+                stdout=out.strip(),
+                stderr=err.strip(),
+                duration_ms=duration_ms,
+            )
 
-        return stdout.decode("utf-8", errors="replace").strip()
+        return out.strip()
 
     # === Snapshot ===
     async def snapshot_list(self, vmx_path: str) -> str:

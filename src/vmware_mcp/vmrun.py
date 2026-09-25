@@ -2,6 +2,22 @@
 
 import asyncio
 import os
+import time
+
+from .errors import ToolError
+from .runtime import decode_output, encryption_password, env_timeout
+
+# 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
+_POWER_COMMANDS = {"start", "stop", "reset", "suspend", "pause", "unpause"}
+_LONG_COMMANDS = {"clone", "upgradevm", "deleteVM", "installTools"}
+
+
+def _timeout_for(command: str) -> float:
+    if command in _POWER_COMMANDS:
+        return env_timeout("VMWARE_TIMEOUT_POWER", 90.0)
+    if command in _LONG_COMMANDS:
+        return env_timeout("VMWARE_TIMEOUT_LONG", 600.0)
+    return env_timeout("VMWARE_TIMEOUT_QUERY", 30.0)
 
 
 class VMRun:
@@ -13,8 +29,11 @@ class VMRun:
             r"C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe"
         )
 
-    async def _run(self, command: str, *args: str, guest_user: str = "", guest_pass: str = "") -> str:
+    async def _run(self, command: str, *args: str, guest_user: str = "", guest_pass: str = "", timeout: float | None = None) -> str:
         cmd = [self.vmrun_path, "-T", "ws"]
+        enc = encryption_password()
+        if enc:
+            cmd.extend(["-vp", enc])
         if guest_user:
             cmd.extend(["-gu", guest_user])
         if guest_pass:
@@ -22,20 +41,43 @@ class VMRun:
         cmd.append(command)
         cmd.extend(args)
 
+        limit = timeout or _timeout_for(command)
+        started = time.monotonic()
+        # stdin 接 DEVNULL：vmrun 等密码/等输入时立即报错退出，
+        # 而不是继承 MCP 服务端的 stdio 管道挂死（历史上 p90=30s 超时墙的根因）
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise ToolError(
+                f"vmrun {command} timed out after {limit:g}s, process killed",
+                timeout=True,
+                duration_ms=int((time.monotonic() - started) * 1000),
+                hint="clone/upgrade 等长任务可用 VMWARE_TIMEOUT_LONG 提高上限；"
+                     "否则检查 VM 是否卡在等加密密码（enc_pass）或等 VMware Tools",
+            )
+        duration_ms = int((time.monotonic() - started) * 1000)
+        out = decode_output(stdout)
+        err = decode_output(stderr)
 
         if proc.returncode != 0:
-            error_msg = stderr.decode("utf-8", errors="replace").strip()
-            if not error_msg:
-                error_msg = stdout.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(f"vmrun failed: {error_msg}")
+            error_msg = err.strip() or out.strip()
+            raise ToolError(
+                f"vmrun failed: {error_msg}",
+                exit_code=proc.returncode,
+                stdout=out.strip(),
+                stderr=err.strip(),
+                duration_ms=duration_ms,
+            )
 
-        return stdout.decode("utf-8", errors="replace").strip()
+        return out.strip()
 
     # === Power ===
     async def start(self, vmx_path: str, gui: bool = True) -> str:

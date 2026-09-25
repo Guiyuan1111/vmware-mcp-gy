@@ -2,16 +2,22 @@
 
 import json
 import os
+
+import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from .client import VMwareClient
+from .errors import ToolError, make_hint
+from .runtime import enc_password
 from .vmcli import VMCli
 from .vmrun import VMRun
 
 server = Server("vmware-mcp")
 _vm_path_cache: dict[str, str] = {}
+_enc_passwords: dict[str, str] = {}
+_UNHANDLED = object()
 
 
 def get_client() -> VMwareClient:
@@ -42,7 +48,14 @@ async def get_vmx_path(vm_id: str) -> str:
         vms = await client.list_vms()
         for vm in vms:
             _vm_path_cache[vm["id"]] = vm["path"]
-    return _vm_path_cache.get(vm_id, "")
+
+    path = _vm_path_cache.get(vm_id, "")
+    if not path:
+        raise ToolError(
+            f"Unknown VM id: {vm_id}",
+            hint="vm_id 须为 vmx 绝对路径或 REST vm_id；先调用 vm_list 查看可用 VM（缓存失效时重新 vm_list）",
+        )
+    return path
 
 
 def T(name: str, desc: str, props: dict, required: list | None = None) -> Tool:
@@ -53,9 +66,47 @@ def T(name: str, desc: str, props: dict, required: list | None = None) -> Tool:
     return Tool(name=name, description=desc, inputSchema=schema)
 
 
+def _error_content(payload: dict) -> list[TextContent]:
+    return [TextContent(type="text", text=json.dumps(payload, indent=2, ensure_ascii=False))]
+
+
+def _structured(fn):
+    """call_tool 异常统一转结构化 JSON 文本响应；未预期异常也不再静默。"""
+
+    async def wrapper(name: str, arguments: dict) -> list[TextContent]:
+        try:
+            return await fn(name, arguments)
+        except ToolError as e:
+            e.tool = e.tool or name
+            return _error_content(e.to_dict())
+        except httpx.HTTPStatusError as e:
+            body = e.response.text[:2000] if e.response is not None else ""
+            return _error_content({
+                "ok": False,
+                "tool": name,
+                "status": getattr(e.response, "status_code", None),
+                "error": str(e),
+                "body": body,
+                "hint": make_hint(body),
+            })
+        except Exception as e:
+            return _error_content({
+                "ok": False,
+                "tool": name,
+                "error": f"{type(e).__name__}: {e}",
+                "hint": make_hint(str(e)),
+            })
+
+    wrapper.__name__ = fn.__name__
+    wrapper.__doc__ = fn.__doc__
+    return wrapper
+
+
 @server.list_tools()
 async def list_tools() -> list[Tool]:
-    return [
+    tools = [
+        # ==================== SERVER ====================
+        T("set_vm_encryption_password", "Store an encrypted VM's password in server memory (keyed by resolved vmx path); alternative to env VMWARE_ENC_PASSWORD and per-call enc_pass", {"vm_id": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "password"]),
         # ==================== REST API ====================
         # VM Management
         T("vm_list", "List all VMs", {}),
@@ -223,19 +274,37 @@ async def list_tools() -> list[Tool]:
         T("vprobes_reset", "Reset VProbes", {"vm_id": {"type": "string"}}, ["vm_id"]),
     ]
 
+    # vmrun 系（带 vm_id 的）工具统一注入可选 enc_pass 参数（加密 VM 密码入口）
+    enc_schema = {"type": "string", "description": "加密 VM 的密码（等效 vmrun -vp）；也可用 env VMWARE_ENC_PASSWORD 或 set_vm_encryption_password 预存"}
+    for tool in tools:
+        if tool.name.startswith("vmrun_") and "vm_id" in tool.inputSchema["properties"]:
+            tool.inputSchema["properties"]["enc_pass"] = dict(enc_schema)
+    return tools
+
 
 @server.call_tool()
+@_structured
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     client = get_client()
     vmcli = get_vmcli()
     vmrun = get_vmrun()
-    result = None
+    result = _UNHANDLED
     a = arguments
 
-    # Helper
+    # Helper：解析 vm_id，并为本次调用写入加密密码（显式 enc_pass > set 工具预存 > env，env 兜底在 vmx 内完成）
     async def vmx(vm_id: str) -> str:
-        return await get_vmx_path(vm_id)
+        path = await get_vmx_path(vm_id)
+        enc_password.set(a.get("enc_pass", "") or _enc_passwords.get(path, "") or os.getenv("VMWARE_ENC_PASSWORD", ""))
+        return path
 
+    # ==================== SERVER ====================
+    if name == "set_vm_encryption_password":
+        try:
+            key = await get_vmx_path(a["vm_id"])
+        except ToolError:
+            key = a["vm_id"]
+        _enc_passwords[key] = a["password"]
+        result = {"status": "stored", "vm_id": key, "note": "密码仅存于服务进程内存，进程重启后失效；持久方案用 env VMWARE_ENC_PASSWORD"}
     # ==================== REST API ====================
     if name == "vm_list":
         result = await client.list_vms()
@@ -509,9 +578,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     elif name == "vprobes_reset":
         result = await vmcli.vprobes_reset(await vmx(a["vm_id"]))
 
+    if result is _UNHANDLED:
+        raise ToolError(f"Unknown tool: {name}", tool=name, hint="工具名不存在；以 list_tools 返回为准")
     if isinstance(result, str):
         return [TextContent(type="text", text=result if result else "OK")]
-    return [TextContent(type="text", text=json.dumps(result, indent=2) if result else "OK")]
+    return [TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False) if result else "OK")]
 
 
 def main():
