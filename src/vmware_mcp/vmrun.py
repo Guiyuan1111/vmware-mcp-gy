@@ -167,7 +167,7 @@ class VMRun:
         return await self._run("CopyFileFromGuestToHost", vmx_path, guest_path, host_path, guest_user=user, guest_pass=password)
 
     # === Guest Process Operations ===
-    async def run_program(self, vmx_path: str, program: str, args: str = "", no_wait: bool = False, active_window: bool = False, interactive: bool = False, user: str = "", password: str = "") -> str:
+    async def run_program(self, vmx_path: str, program: str, args: str | list[str] = "", no_wait: bool = False, active_window: bool = False, interactive: bool = False, user: str = "", password: str = "") -> str:
         cmd_args = [vmx_path]
         if no_wait:
             cmd_args.append("-noWait")
@@ -177,7 +177,11 @@ class VMRun:
             cmd_args.append("-interactive")
         cmd_args.append(program)
         if args:
-            cmd_args.extend(args.split())
+            # 字符串整体作为单个 argv 元素透传（不再 split，含空格路径不被拆碎）；多参数请传列表
+            if isinstance(args, str):
+                cmd_args.append(args)
+            else:
+                cmd_args.extend(args)
         return await self._run("runProgramInGuest", *cmd_args, guest_user=user, guest_pass=password)
 
     async def run_script(self, vmx_path: str, interpreter: str, script: str, no_wait: bool = False, active_window: bool = False, interactive: bool = False, user: str = "", password: str = "") -> str:
@@ -262,3 +266,120 @@ class VMRun:
 
     async def delete_port_forwarding(self, network: str, protocol: str, host_port: int) -> str:
         return await self._run("deletePortForwarding", network, protocol, str(host_port))
+
+    # === Directory Transfer ===
+    async def copy_dir_to(self, vmx_path: str, host_dir: str, guest_dir: str, include: str = "", exclude: str = "", user: str = "", password: str = "") -> dict:
+        """递归复制宿主机目录树到 guest。include/exclude 为逗号分隔的后缀过滤（如 ".txt,.log"）。"""
+        host_dir = os.path.abspath(host_dir)
+        if not os.path.isdir(host_dir):
+            raise ToolError(f"host directory not found: {host_dir}", hint="检查宿主机目录路径")
+        inc = tuple(s.strip().lower() for s in include.split(",") if s.strip())
+        exc = tuple(s.strip().lower() for s in exclude.split(",") if s.strip())
+        guest_base = guest_dir.rstrip("\\/").replace("/", "\\")
+        created: set[str] = set()
+        copied: list[str] = []
+        failed: list[dict] = []
+        for root, _dirs, files in os.walk(host_dir):
+            for fname in files:
+                lowered = fname.lower()
+                if inc and not lowered.endswith(inc):
+                    continue
+                if exc and lowered.endswith(exc):
+                    continue
+                src = os.path.join(root, fname)
+                rel = os.path.relpath(src, host_dir).replace(os.sep, "\\")
+                dst = guest_base + "\\" + rel
+                parent_parts = rel.split("\\")[:-1]
+                ok = True
+                for i in range(len(parent_parts)):
+                    sub = guest_base + "\\" + "\\".join(parent_parts[: i + 1])
+                    if sub not in created:
+                        try:
+                            await self.create_directory(vmx_path, sub, user, password)
+                        except ToolError as e:
+                            # 目录已存在视为成功；其余错误记录并跳过该文件
+                            if "exist" not in str(e).lower():
+                                failed.append({"file": rel, "error": str(e)})
+                                ok = False
+                                break
+                        created.add(sub)
+                if not ok:
+                    continue
+                try:
+                    await self.copy_to_guest(vmx_path, src, dst, user, password)
+                    copied.append(dst)
+                except ToolError as e:
+                    failed.append({"file": rel, "error": str(e)})
+        return {"source": host_dir, "destination": guest_base, "copied_count": len(copied), "copied": copied, "failed": failed}
+
+    async def copy_dir_from(self, vmx_path: str, guest_dir: str, host_dir: str, include: str = "", exclude: str = "", user: str = "", password: str = "") -> dict:
+        """递归复制 guest 目录树到宿主机（依赖 vmrun ls 输出解析，无法解析的行计入 skipped）。"""
+        host_dir = os.path.abspath(host_dir)
+        os.makedirs(host_dir, exist_ok=True)
+        inc = tuple(s.strip().lower() for s in include.split(",") if s.strip())
+        exc = tuple(s.strip().lower() for s in exclude.split(",") if s.strip())
+        guest_base = guest_dir.rstrip("\\/").replace("/", "\\")
+        copied: list[str] = []
+        failed: list[dict] = []
+        skipped: list[str] = []
+        guest_files = await self._walk_guest(vmx_path, guest_base, user, password, failed, skipped)
+        for gfile in guest_files:
+            lowered = gfile.lower()
+            if inc and not lowered.endswith(inc):
+                continue
+            if exc and lowered.endswith(exc):
+                continue
+            rel = gfile[len(guest_base):].lstrip("\\")
+            dst = os.path.join(host_dir, *rel.split("\\"))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            try:
+                await self.copy_from_guest(vmx_path, gfile, dst, user, password)
+                copied.append(dst)
+            except ToolError as e:
+                failed.append({"file": gfile, "error": str(e)})
+        return {"source": guest_base, "destination": host_dir, "copied_count": len(copied), "copied": copied, "failed": failed, "skipped": skipped}
+
+    async def _walk_guest(self, vmx_path: str, guest_dir: str, user: str, password: str, failed: list, skipped: list) -> list[str]:
+        files: list[str] = []
+        stack = [guest_dir]
+        while stack:
+            current = stack.pop()
+            try:
+                listing = await self.list_directory(vmx_path, current, user, password)
+            except ToolError as e:
+                failed.append({"dir": current, "error": str(e)})
+                continue
+            for line in listing.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                parsed = self._parse_ls_entry(line)
+                if parsed is None:
+                    skipped.append(line)
+                    continue
+                entry_name, is_dir = parsed
+                full = current + "\\" + entry_name
+                if is_dir:
+                    stack.append(full)
+                else:
+                    files.append(full)
+        return files
+
+    @staticmethod
+    def _parse_ls_entry(line: str) -> tuple[str, bool] | None:
+        """解析 vmrun listDirectoryInGuest 单行，返回 (名称, 是否目录)。
+
+        vmrun 输出布局未在全部 guest OS 上验证，这里做容错解析：
+        含 <dir> 标记按目录处理（名称取标记之后的文本）；文件行以时间 token
+        （含 ':'）之后的剩余部分为名称。无法解析返回 None，由调用方记录。
+        """
+        if "<dir>" in line:
+            name = line.split("<dir>", 1)[1].strip()
+            return (name, True) if name else None
+        tokens = line.split()
+        if len(tokens) >= 4:
+            # 时间 token（含 ':'）可能在第 2~5 位（日期是 '07-13-2016' 或 'Nov 06 2024' 布局）
+            time_idx = next((i for i, t in enumerate(tokens[:6]) if ":" in t), None)
+            if time_idx is not None and time_idx + 1 < len(tokens):
+                return " ".join(tokens[time_idx + 1:]), False
+        return None

@@ -1,5 +1,7 @@
 """VMware MCP Server - Complete implementation with REST API, vmcli, and vmrun."""
 
+import asyncio
+import glob
 import json
 import os
 
@@ -17,24 +19,38 @@ from .vmrun import VMRun
 server = Server("vmware-mcp")
 _vm_path_cache: dict[str, str] = {}
 _enc_passwords: dict[str, str] = {}
+_vm_path_lock = asyncio.Lock()
 _UNHANDLED = object()
+
+_client: VMwareClient | None = None
+_vmrun: VMRun | None = None
+_vmcli: VMCli | None = None
 
 
 def get_client() -> VMwareClient:
-    return VMwareClient(
-        host=os.getenv("VMWARE_HOST", "localhost"),
-        port=int(os.getenv("VMWARE_PORT", "8697")),
-        username=os.getenv("VMWARE_USERNAME", ""),
-        password=os.getenv("VMWARE_PASSWORD", ""),
-    )
+    global _client
+    if _client is None:
+        _client = VMwareClient(
+            host=os.getenv("VMWARE_HOST", "localhost"),
+            port=int(os.getenv("VMWARE_PORT", "8697")),
+            username=os.getenv("VMWARE_USERNAME", ""),
+            password=os.getenv("VMWARE_PASSWORD", ""),
+        )
+    return _client
 
 
 def get_vmcli() -> VMCli:
-    return VMCli()
+    global _vmcli
+    if _vmcli is None:
+        _vmcli = VMCli()
+    return _vmcli
 
 
 def get_vmrun() -> VMRun:
-    return VMRun()
+    global _vmrun
+    if _vmrun is None:
+        _vmrun = VMRun()
+    return _vmrun
 
 
 async def get_vmx_path(vm_id: str) -> str:
@@ -43,19 +59,49 @@ async def get_vmx_path(vm_id: str) -> str:
     if vm_id.endswith(".vmx") or "/" in vm_id or "\\" in vm_id:
         return vm_id
 
-    if vm_id not in _vm_path_cache:
-        client = get_client()
-        vms = await client.list_vms()
-        for vm in vms:
-            _vm_path_cache[vm["id"]] = vm["path"]
+    async with _vm_path_lock:
+        path = _vm_path_cache.get(vm_id)
+        if path and not os.path.exists(path):
+            # 缓存指向的 vmx 已不存在（VM 被移动/删除）→ 失效重建
+            _vm_path_cache.pop(vm_id, None)
+            path = None
+        if path is None:
+            client = get_client()
+            vms = await client.list_vms()
+            for vm in vms:
+                _vm_path_cache[vm["id"]] = vm["path"]
+            path = _vm_path_cache.get(vm_id, "")
 
-    path = _vm_path_cache.get(vm_id, "")
     if not path:
         raise ToolError(
             f"Unknown VM id: {vm_id}",
             hint="vm_id 须为 vmx 绝对路径或 REST vm_id；先调用 vm_list 查看可用 VM（缓存失效时重新 vm_list）",
         )
     return path
+
+
+def _vmx_encryption(vmx_path: str) -> str:
+    """读 vmx 文件中的 encryptionType；无该键返回 none，文件不可读返回 unknown。"""
+    try:
+        with open(vmx_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if "encryptionType" in line and "=" in line:
+                    return line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        return "unknown"
+    return "none"
+
+
+def _log_tail(path: str, lines: int) -> str:
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 65536))
+            data = f.read().decode("utf-8", errors="replace")
+        return "\n".join(data.splitlines()[-lines:])
+    except OSError as e:
+        return f"(无法读取 {path}: {e})"
 
 
 def T(name: str, desc: str, props: dict, required: list | None = None) -> Tool:
@@ -107,6 +153,9 @@ async def list_tools() -> list[Tool]:
     tools = [
         # ==================== SERVER ====================
         T("set_vm_encryption_password", "Store an encrypted VM's password in server memory (keyed by resolved vmx path); alternative to env VMWARE_ENC_PASSWORD and per-call enc_pass", {"vm_id": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "password"]),
+        T("vm_resolve", "Resolve a VM by fuzzy name/path fragment; returns vmx path, power state, encryption type", {"query": {"type": "string"}}, ["query"]),
+        T("vm_health", "One-shot VM health: power, Tools state, IP, encryption, idle-suspend artifacts, log tail", {"vm_id": {"type": "string"}}, ["vm_id"]),
+        T("vm_log_tail", "Read the last N lines of the VM's vmware.log", {"vm_id": {"type": "string"}, "lines": {"type": "integer"}}, ["vm_id"]),
         # ==================== REST API ====================
         # VM Management
         T("vm_list", "List all VMs", {}),
@@ -162,6 +211,8 @@ async def list_tools() -> list[Tool]:
         T("vmrun_copy_to", "Copy file from host to guest", {"vm_id": {"type": "string"}, "host_path": {"type": "string"}, "guest_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "host_path", "guest_path"]),
         T("vmrun_copy_from", "Copy file from guest to host", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
         T("vmrun_temp_file", "Create temp file in guest", {"vm_id": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id"]),
+        T("vmrun_copy_dir_to", "Recursively copy a host directory tree into the guest", {"vm_id": {"type": "string"}, "host_path": {"type": "string"}, "guest_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "host_path", "guest_path"]),
+        T("vmrun_copy_dir_from", "Recursively copy a guest directory tree to the host", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
         # Guest Process
         T("vmrun_run", "Run program in guest", {"vm_id": {"type": "string"}, "program": {"type": "string"}, "args": {"type": "string"}, "no_wait": {"type": "boolean"}, "interactive": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "program"]),
         T("vmrun_script", "Run script in guest", {"vm_id": {"type": "string"}, "interpreter": {"type": "string"}, "script": {"type": "string"}, "no_wait": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "interpreter", "script"]),
@@ -305,6 +356,48 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             key = a["vm_id"]
         _enc_passwords[key] = a["password"]
         result = {"status": "stored", "vm_id": key, "note": "密码仅存于服务进程内存，进程重启后失效；持久方案用 env VMWARE_ENC_PASSWORD"}
+    elif name == "vm_resolve":
+        query = str(a["query"]).lower()
+        vms = await client.list_vms()
+        for vm in vms:
+            _vm_path_cache[vm["id"]] = vm["path"]
+        resolved = []
+        for vm in vms:
+            if query in str(vm.get("path", "")).lower() or query in str(vm.get("id", "")).lower():
+                entry = {"id": vm.get("id"), "path": vm.get("path"), "encryptionType": _vmx_encryption(vm.get("path", ""))}
+                try:
+                    entry["power"] = await client.get_power_state(vm["id"])
+                except Exception as e:
+                    entry["power"] = f"unavailable: {type(e).__name__}: {e}"
+                resolved.append(entry)
+        result = {"query": a["query"], "count": len(resolved), "matches": resolved}
+    elif name == "vm_health":
+        vmx_path = await vmx(a["vm_id"])
+        vmdir = os.path.dirname(vmx_path) or "."
+        health = {"vm_id": a["vm_id"], "vmx": vmx_path, "encryptionType": _vmx_encryption(vmx_path)}
+        try:
+            listing = await vmrun.list_running()
+            health["running"] = vmx_path.lower() in listing.lower()
+        except ToolError as e:
+            health["running"] = f"unknown: {e}"
+        try:
+            health["tools"] = await vmrun.check_tools_state(vmx_path)
+        except ToolError as e:
+            health["tools"] = f"error: {e}"
+        try:
+            health["ip"] = await vmrun.get_guest_ip(vmx_path)
+        except ToolError:
+            health["ip"] = None
+        vmem = glob.glob(os.path.join(vmdir, "*.vmem"))
+        vmss = glob.glob(os.path.join(vmdir, "*.vmss"))
+        health["suspend_artifacts"] = {"vmem": vmem, "vmss": vmss}
+        if vmem and vmss:
+            health["hint"] = "存在 .vmem/.vmss：VM 多半被空闲挂起（非关机），vmrun_start 可从挂起点无损恢复"
+        health["log_tail"] = _log_tail(os.path.join(vmdir, "vmware.log"), 20)
+        result = health
+    elif name == "vm_log_tail":
+        vmx_path = await vmx(a["vm_id"])
+        result = {"log": _log_tail(os.path.join(os.path.dirname(vmx_path) or ".", "vmware.log"), int(a.get("lines", 50)))}
     # ==================== REST API ====================
     if name == "vm_list":
         result = await client.list_vms()
@@ -401,6 +494,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = await vmrun.copy_from_guest(await vmx(a["vm_id"]), a["guest_path"], a["host_path"], a.get("user", ""), a.get("password", ""))
     elif name == "vmrun_temp_file":
         result = await vmrun.create_temp_file(await vmx(a["vm_id"]), a.get("user", ""), a.get("password", ""))
+    elif name == "vmrun_copy_dir_to":
+        result = await vmrun.copy_dir_to(await vmx(a["vm_id"]), a["host_path"], a["guest_path"], a.get("include", ""), a.get("exclude", ""), a.get("user", ""), a.get("password", ""))
+    elif name == "vmrun_copy_dir_from":
+        result = await vmrun.copy_dir_from(await vmx(a["vm_id"]), a["guest_path"], a["host_path"], a.get("include", ""), a.get("exclude", ""), a.get("user", ""), a.get("password", ""))
     elif name == "vmrun_run":
         result = await vmrun.run_program(await vmx(a["vm_id"]), a["program"], a.get("args", ""), a.get("no_wait", False), False, a.get("interactive", False), a.get("user", ""), a.get("password", ""))
     elif name == "vmrun_script":
