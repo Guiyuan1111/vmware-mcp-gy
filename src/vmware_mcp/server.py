@@ -104,6 +104,25 @@ def _log_tail(path: str, lines: int) -> str:
         return f"(无法读取 {path}: {e})"
 
 
+def _ocr_image(image_path: str) -> dict:
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except ImportError:
+        return {"ok": False, "image": image_path, "hint": "OCR 引擎未安装：pip install 'vmware-mcp[ocr]'"}
+    try:
+        engine = RapidOCR()
+        detected, _elapsed = engine(image_path)
+    except Exception as e:
+        return {
+            "ok": False,
+            "image": image_path,
+            "error": f"{type(e).__name__}: {e}",
+            "hint": "图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）",
+        }
+    lines = [{"text": item[1], "score": round(float(item[2]), 3)} for item in (detected or [])]
+    return {"ok": True, "image": image_path, "lines": lines, "text": "\n".join(item["text"] for item in lines)}
+
+
 def T(name: str, desc: str, props: dict, required: list | None = None) -> Tool:
     """Helper to create Tool definitions."""
     schema = {"type": "object", "properties": props}
@@ -156,6 +175,7 @@ async def list_tools() -> list[Tool]:
         T("vm_resolve", "server｜模糊名/路径片段解析 VM：返回 vmx 绝对路径 + 电源状态 + 加密类型。消除 vm_id 歧义的第一入口。只读", {"query": {"type": "string"}}, ["query"]),
         T("vm_health", "server｜一次调用拿全 VM 体检：运行中/Tools 状态/IP/加密类型/.vmem+.vmss 空闲挂起判据/vmware.log 尾 20 行。VM\"不动了\"先调这个。只读", {"vm_id": {"type": "string"}}, ["vm_id"]),
         T("vm_log_tail", "server｜读 vmware.log 尾部 N 行（默认 50）。VMX idle exit=空闲挂起；password required=加密问题。只读", {"vm_id": {"type": "string"}, "lines": {"type": "integer"}}, ["vm_id"]),
+        T("screenshot_ocr", "server｜VM 截屏并 OCR 成文本（纯文字模型可直接读画面）。需可选依赖 pip install 'vmware-mcp[ocr]'。只读（写宿主图片）", {"vm_id": {"type": "string"}, "output_path": {"type": "string"}}, ["vm_id", "output_path"]),
         # ==================== REST API ====================
         # VM Management
         T("vm_list", "REST/vmrest｜列出全部已注册 VM（id/path）。需 vmrest 运行（默认 8697）。只读；结果写入服务端 vm_id→vmx 缓存", {}),
@@ -403,6 +423,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     elif name == "vm_log_tail":
         vmx_path = await vmx(a["vm_id"])
         result = {"log": _log_tail(os.path.join(os.path.dirname(vmx_path) or ".", "vmware.log"), int(a.get("lines", 50)))}
+    elif name == "screenshot_ocr":
+        image = a["output_path"]
+        await vmrun.capture_screen(await vmx(a["vm_id"]), image)
+        result = _ocr_image(image)
     # ==================== REST API ====================
     if name == "vm_list":
         result = await client.list_vms()
