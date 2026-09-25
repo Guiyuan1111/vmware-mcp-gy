@@ -136,7 +136,7 @@
 |--------|-----------|---------|-----------|-----------|-------|------|
 | 4 | 4 | 2 | 3 | 4 | 5 | **22/30** |
 
-**结论**：🧑‍💻 **AI 辅助**。分支模板高度机械（130 个分支中约 120 个为单行委托），但存在两类需要人工把关的点：
+**结论**：🧑‍💻 **AI 辅助**。分支模板高度机械（130 个分支中 124 个为单条语句委托，实测），但存在三类需要人工把关的点：
 1. **参数名转换**：REST 通道的 snake_case → camelCase 映射（`server.py:281`：`guest_ip → {"guestIp": ...}`）写错会静默丢失参数；
 2. **可选参数默认值**：`a.get("gui", True)`（`server.py:296`）这类默认值语义（启动默认带 GUI）是业务决策，写错即改变行为。
 3. **分发落空**：未知工具名静默返回 `OK`（`server.py:512-514`），AI 重构时应改为显式错误。
@@ -161,11 +161,11 @@
 
 **结论**：🤖 **完全 AI 化**。明细表可从 `list_tools()` 的 130 个 `T()` 声明机械生成。
 
-**现状即证据**：README 汇总表声称 117 个工具（`README.md:7-13`：REST 20 + vmrun 54 + vmcli 43），代码实际 130 个（REST 19 + vmrun 46 + vmcli 65，`server.py:61-223`）——三个数字全部不符。这正是"文档靠手工维护"造成的漂移。
+**修复前证据**（该漂移已于 2026-09-25 复审修复）：README 汇总表曾声称 117 个工具（`README.md:7-13`：REST 20 + vmrun 54 + vmcli 43），代码实际 130 个（REST 19 + vmrun 46 + vmcli 65，`server.py:61-223`）——三个数字全部不符。这正是"文档靠手工维护"造成的漂移。
 
 **AI 替代方式**：AI 从 `list_tools()` 提取工具清单，自动重生成 README 的汇总表与三个明细表；纳入提交前检查。
 
-**优先级**：⭐⭐⭐ 高 — Quick Win（立即可做，直接修复现存错误）
+**优先级**：⭐⭐⭐ 高 — Quick Win（数字错误已修复；防再漂移机制待建）
 
 **对应Blueprint**：[blueprints/04-tool-consistency-auditor.md](blueprints/04-tool-consistency-auditor.md)
 
@@ -189,21 +189,23 @@
 
 ### 3.1 函数清单与 AI 替代潜力（按模块汇总，全量）
 
-**总计 151 个函数/方法**：server.py 9 个、client.py 25 个、vmrun.py 48 个、vmcli.py 69 个（含 `__init__` 与私有 `_run`/`_request`，明细见 01 报告第 5 节）。
+**总计 152 个函数/方法**：server.py 10 个（含 `main` 内嵌套的 `run`）、client.py 25 个、vmrun.py 48 个、vmcli.py 69 个（含 `__init__` 与私有 `_run`/`_request`，明细见 01 报告第 5 节；`grep -cE '^\s*(async )?def '` 实测）。
 
 | 函数（代表） | 签名 | 位置 | 行数 | 圈复杂度 | 外部依赖 | AI 替代潜力 |
 |-------------|------|------|------|---------|---------|------------|
 | `client._request` | `async (method, path, **kwargs) -> Any` | `client.py:14-20` | 7 | 2 | httpx | 完全 AI 化（一次性生成后稳定） |
-| `client.list_vms` 等 23 个 | 各一行的端点封装 | `client.py:23-94` | 1-2/个 | 1 | httpx（经 _request） | 完全 AI 化（批量） |
-| `vmrun._run` | `async (command, *args, guest_user="", guest_pass="") -> str` | `vmrun.py:16-38` | 23 | 3 | asyncio | 完全 AI 化 |
-| `vmrun.start` 等 46 个 | 同构薄封装 | `vmrun.py:41-222` | 1-11/个 | 1-2 | vmrun.exe（经 _run） | 完全 AI 化（批量） |
-| `vmcli._run` | `async (vmx_path, module, command, *args) -> str` | `vmcli.py:18-36` | 19 | 2 | asyncio | 完全 AI 化 |
-| `vmcli.snapshot_take` 等 67 个 | 同构薄封装 | `vmcli.py:39-308` | 1-9/个 | 1-2 | vmcli.exe（经 _run） | 完全 AI 化（批量） |
+| `client.list_vms` 等 23 个 | 各一行的端点封装 | `client.py:23-94` | 2/个 | 1 | httpx（经 _request） | 完全 AI 化（批量） |
+| `vmrun._run` | `async (command, *args, guest_user="", guest_pass="") -> str` | `vmrun.py:16-38` | 23 | 5 | asyncio | 完全 AI 化 |
+| `vmrun.start` 等 46 个 | 同构薄封装 | `vmrun.py:41-222` | 2-12/个 | 1-5 | vmrun.exe（经 _run） | 完全 AI 化（批量） |
+| `vmcli._run` | `async (vmx_path, module, command, *args) -> str` | `vmcli.py:18-36` | 19 | 3 | asyncio | 完全 AI 化 |
+| `vmcli.snapshot_take` 等 67 个 | 同构薄封装 | `vmcli.py:39-308` | 2-9/个 | 1-4 | vmcli.exe（经 _run） | 完全 AI 化（批量） |
 | `server.T` | `(name, desc, props, required) -> Tool` | `server.py:48-53` | 6 | 2 | mcp.types | 完全 AI 化 |
 | `server.list_tools` | `async () -> list[Tool]` | `server.py:56-224` | 169 | 1（线性） | mcp.types | 完全 AI 化（声明生成） |
-| `server.call_tool` | `async (name, arguments) -> list[TextContent]` | `server.py:227-514` | 288 | ~130（分支） | 三适配器 | AI 辅助（默认值/参数映射需人工 review） |
-| `server.get_vmx_path` | `async (vm_id) -> str` | `server.py:34-45` | 12 | 4 | client | AI 辅助（含缓存语义与边界判定，需 review） |
+| `server.call_tool` | `async (name: str, arguments: dict) -> list[TextContent]` | `server.py:227-514` | 288 | 136（AST 实测：130 个分支 + 分支内条件） | 三适配器 | AI 辅助（默认值/参数映射需人工 review） |
+| `server.get_vmx_path` | `async (vm_id) -> str` | `server.py:34-45` | 12 | 6 | client | AI 辅助（含缓存语义与边界判定，需 review） |
 | `server.main`/`run` | `() -> None` | `server.py:517-524` | 8 | 1 | mcp.server | 完全 AI 化（一次性样板） |
+
+> 口径说明（2026-09-25 复审实测）：行数含 `def` 行；圈复杂度按 AST 统计（`If`/`IfExp`/`For`/`While`/`ExceptHandler`/`BoolOp` 各计 1）。多语句分支共 6 个（`vm_list`、`vm_update` 与 4 个 REST 删除类），其余 124 个分支为单条语句委托。
 
 ### 3.2 接口契约提取（代表性函数）
 
@@ -262,7 +264,7 @@
 
 | 模块 | 评分 | 等级 | 实施难度 | 预期收益 | 优先级 | 阶段 |
 |------|------|------|---------|---------|--------|------|
-| 工具文档同步（README） | 26/30 | 完全 AI 化 | 低 | 高（立即修复 117→130 漂移） | 🥇 高 | Phase 1 |
+| 工具文档同步（README） | 26/30 | 完全 AI 化 | 低 | 高（117→130 漂移已修复；防再漂移待建） | 🥇 高 | Phase 1 |
 | vmrun/vmcli 封装生成 | 28/30 | 完全 AI 化 | 低 | 高（新增命令零手工） | 🥇 高 | Phase 1 |
 | REST 封装生成 | 28/30 | 完全 AI 化 | 低 | 高 | 🥇 高 | Phase 1 |
 | MCP 工具三件套注册 | 25/30 | 完全 AI 化 | 中 | 高（消除声明/实现漂移） | 🥈 中 | Phase 2 |
@@ -294,7 +296,7 @@ quadrantChart
 
 | 事项 | 措施 | 预期效果 | 资源需求 |
 |------|------|---------|---------|
-| README 工具表重建 | AI 从 `list_tools()` 生成文档 | 消除 117/130 漂移；未来零手工维护 | Blueprint 04 |
+| README 工具表重建 | AI 从 `list_tools()` 生成文档 | 漂移已修复（2026-09-25）；自动化重建落地后零手工维护 | Blueprint 04 |
 | 新命令封装流水线 | AI 按 Blueprint 01/02 生成封装 | 单命令接入从 ~10 分钟降至 1 分钟 | Blueprint 01/02 |
 | 缺口工具补全 | 为 6 个死方法补 T() 声明与分支（或明确移除） | 消除实现/暴露脱节 | Blueprint 03 |
 
@@ -319,7 +321,7 @@ quadrantChart
 
 ### 前提条件
 
-- [x] 项目代码高度模板化，AI 可理解性极好（同构率 >85%）
+- [x] 项目代码高度模板化，AI 可理解性极好（实测：136 个封装方法中 118 个方法体为单行委托，约 86.8%）
 - [ ] 无测试基线 —— AI 生成代码的正确性目前只能靠人工抽查，建议先落地 Phase 2 的一致性元测试
 - [ ] vmrun/vmcli/REST 官方文档可获取（AI 生成封装的输入源）
 - [x] 单人项目，无协作冲突，可快速试行

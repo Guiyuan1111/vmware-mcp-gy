@@ -2,7 +2,7 @@
 
 > 项目：vmware-mcp（vmware-mcp-gy）
 > 分析时间：2026-09-25_153605
-> 覆盖：130 个 MCP 工具、5 个源文件、151 个函数/方法
+> 覆盖：130 个 MCP 工具、5 个源文件、152 个函数/方法
 
 | # | Blueprint | 组件 | AI 等级 | 优先级 | 文件 |
 |---|-----------|------|---------|--------|------|
@@ -14,7 +14,7 @@
 ## 实施路线图
 
 ### 立即实施（Quick Win）
-1. **工具一致性审计** (`blueprints/04-tool-consistency-auditor.md`) — 存在已确认漂移（README 声称 117 个工具，实际 130 个，`README.md:7-13` vs `server.py:61-223`），零风险直接修复
+1. **工具一致性审计** (`blueprints/04-tool-consistency-auditor.md`) — 历史漂移（README 声称 117，实际 130，`README.md:7-13` vs `server.py:61-223`）已于 2026-09-25 复审修复；建议固化为提交前防漂移检查
 2. **REST 封装生成** (`blueprints/01-rest-client-generator.md`) — 可顺带暴露 4 个死方法（`client.py:52-53,68-69,81-85`）
 3. **CLI 封装生成** (`blueprints/02-cli-wrapper-generator.md`) — 113 个同构方法模板已验证，可批量复制
 

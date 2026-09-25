@@ -13,7 +13,7 @@
 | **推荐 Skill 名称** | `vmware-mcp-tool-consistency-auditor` |
 | **用途** | 静态审计 vmware-mcp 的三方一致性：`list_tools()` 声明、`call_tool()` 分支、底层封装方法、README 文档，输出差异报告并可自动修复 |
 | **AI 替代等级** | 🤖 完全 AI 化 |
-| **实施优先级** | 🥇 Quick Win（存在已确认的实际漂移：README 117 vs 代码 130） |
+| **实施优先级** | 🥇 Quick Win（历史漂移 README 117 vs 代码 130 已于 2026-09-25 复审修复，本蓝图用于防再漂移） |
 | **源文件数** | 5（全部源文件 + README.md） |
 | **源代码行数** | ~1350（含 README） |
 
@@ -46,6 +46,8 @@ description: >-
 | README 工具表 | 无 | 1 汇总表 + 3 明细表 | `README.md:7-13,48-190` |
 
 ### 已确认的漂移基线（本蓝图的价值证明）
+
+> **状态（2026-09-25 复审）**：下表漂移已全部修复（README 汇总表现实测为 130 = REST 19 + vmrun 46 + vmcli 65）；本表保留作为审计基线与回归示例。
 
 | 检查项 | README 声称 | 代码实际 | 证据 |
 |--------|------------|---------|------|
@@ -141,8 +143,8 @@ description: >-
 
 ```text
 输入: "审计 vmware-mcp 的工具一致性"
-输出: 报告——声明 130 / 分支 130（示例数字以实测为准）/ 封装 136 / 文档 117；
-      DOC_DRIFT: README.md:7 声称 117，实际 130（REST 19、vmrun 46、vmcli 65）；
+输出: 报告——声明 130 / 分支 130（实测）/ 封装 136 / 文档 130；
+      DOC_DRIFT: 无（历史漂移 README 117 vs 130 已于 2026-09-25 修复）；
       METHOD_NO_DECL: client.update_nic (client.py:52) 等 6 个死方法；
       并给出修复方案
 ```

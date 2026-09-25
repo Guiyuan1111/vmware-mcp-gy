@@ -88,7 +88,7 @@ flowchart LR
 | 反序列化 | `result` | `dict` | `{"id": "...", "path": "...", "cpu": {...}}` | `client.py:19` |
 | 回包序列化 | `text` | `str` | `json.dumps(result, indent=2)` | `server.py:514` |
 
-**错误分支**：若 REST 返回 4xx/5xx，`raise_for_status()`（`client.py:17`）抛出 `httpx.HTTPStatusError`，向上穿透 `call_tool`（无 try/except，`server.py:227-514` 通篇无异常捕获），由 mcp SDK 捕获并转换为 MCP 错误响应。
+**错误分支**：若 REST 返回 4xx/5xx，`raise_for_status()`（`client.py:17`）抛出 `httpx.HTTPStatusError`，向上穿透 `call_tool`（无 try/except，`server.py:227-514` 通篇无异常捕获），由 mcp SDK 捕获并转换为 MCP 错误响应（**已实测**：本机安装的 mcp 1.30.0，`mcp/server/lowlevel/server.py:589-590` 在 call_tool 处理器内 `except Exception` 转为 error result；`:791-794` 在 `_handle_request` 兜底转 `ErrorData`；`run()` 默认 `raise_exceptions=False`（`:655`），异常不会令进程退出）。
 
 ### 数据流 2：vmrun 通道 — `vmrun_start`（含 vmx 路径解析）
 
@@ -209,7 +209,7 @@ stateDiagram-v2
     Running --> Running: vm_reset (vmrun.py:47) / Reset (vmcli.py:217)
 ```
 
-**非法转换防护**：代码层无状态前置校验——直接对已关机 VM 调用 `pause` 会由 VMware 底层拒绝并以 `RuntimeError`（`vmrun.py:36`）冒泡，错误语义依赖 CLI 输出。
+**非法转换防护**：代码层无状态前置校验——直接对已关机 VM 调用 `pause` 会由 VMware 底层拒绝并以 `RuntimeError`（`vmrun.py:36`）冒泡，错误语义依赖 CLI 输出。**口径说明**：上图状态边是基于命令名称语义的推断（代码事实仅为各通道存在对应命令），未在真实 VMware Workstation 环境逐边验证。
 
 ### 生命周期钩子
 
@@ -242,7 +242,7 @@ KeyError                            # call_tool 中 a["..."] 必填参数缺失�
 
 ### 错误传播机制
 
-- **底层 → 上层**：异常直抛，`call_tool()`（`server.py:227-514`）与 `main()`（`server.py:517-524`）均无 try/except，最终由 mcp SDK 框架层捕获并转成 MCP 协议错误。
+- **底层 → 上层**：异常直抛，`call_tool()`（`server.py:227-514`）与 `main()`（`server.py:517-524`）均无 try/except，最终由 mcp SDK 框架层捕获并转成 MCP 协议错误（实测依据同上：mcp 1.30.0 `lowlevel/server.py:589-590`、`:777-794`）。
 - **全局处理器**：无项目级全局处理器；错误响应格式由 mcp SDK 决定（非本项目控制）。
 - **无重试/退避/熔断**：全代码库无 `retry`、`backoff`、`sleep` 相关逻辑（检索确认）。
 
@@ -265,9 +265,9 @@ KeyError                            # call_tool 中 a["..."] 必填参数缺失�
 
 ## 6. 并发与异步处理
 
-- **并发模型**：单进程 asyncio 事件循环（`server.py:524`）。所有适配器方法为 `async def`，MCP SDK 可并发分派多个 `call_tool`。
+- **并发模型**：单进程 asyncio 事件循环（`server.py:524`）。所有适配器方法为 `async def`；MCP SDK 对每条入站消息经 `anyio.create_task_group()` + `tg.start_soon()` 并发分派（**已实测**：mcp 1.30.0 `lowlevel/server.py:679`、`:684-690`），多个 `call_tool` 可并发执行。
 - **子进程 I/O**：`create_subprocess_exec` + `await proc.communicate()`（`vmrun.py:25-30`、`vmcli.py:25-30`）——异步等待，不阻塞事件循环。
 - **HTTP I/O**：`httpx.AsyncClient`（`client.py:15`）——异步，但**每请求新建/销毁客户端实例**，无连接池复用；`verify=False` 禁用证书校验（同处）。
 - **竞态处理**：无锁。`_vm_path_cache` 的并发写（`server.py:43-44`）在 asyncio 单线程模型下无数据竞争，但存在**逻辑竞态**：两个并发请求同时未命中缓存会各自触发一次 `list_vms()` 全量拉取（重复网络开销，结果幂等）。
-- **长任务**：vmrun `start`/`stop` 等命令可能执行数十秒，期间该协程挂起；客户端可并发发起新请求（对不同 VM），对同一 VM 的并发命令由 VMware 仲裁。
+- **长任务**：vmrun `start`/`stop` 等命令可能执行数十秒（经验假设，未实测），期间该协程挂起；客户端可并发发起新请求（对不同 VM——SDK 侧并发已实测）。对同一 VM 的并发命令最终行为由 VMware 底层决定（推断，未验证）。
 - **超时**：子进程与 HTTP 请求均**未设置超时**（`communicate()` 无 timeout 参数，`httpx.AsyncClient` 无 timeout 参数，`vmrun.py:30`、`client.py:15-16`）——慢命令或挂起的 vmrest 会让请求无限等待。

@@ -191,7 +191,7 @@ _run() 子进程结束  (vmrun.py:30 / vmcli.py:30)
 - **远程**：`origin`（Guiyuan1111/vmware-mcp-gy）与 `upstream`（ZacharyZcR/vmware-mcp）两个远端并存，说明本仓库是上游项目的 fork 改造版（`git remote -v` 输出）。
 - 无 develop/release/feature 分支模式，单人直线式提交。
 
-### 提交历史分析（9 个提交，1 位贡献者 ZacharyZcR）
+### 提交历史分析（快照时点：9 个提交，1 位贡献者 ZacharyZcR）
 
 | 提交 | 主题 | 对应阶段 |
 |------|------|---------|
@@ -207,12 +207,14 @@ _run() 子进程结束  (vmrun.py:30 / vmcli.py:30)
 
 **演进脉络**：REST → 修运行问题 → 加 vmcli → 补全 vmrun/vmcli 覆盖 → 修 vmx 路径兼容。功能增长模式为"通道逐个接入、每个通道一次全覆盖提交"，印证了 04 报告中"工具注册高度模板化"的判断。
 
+> 时点说明：上表为分析快照（2026-09-25_153605）数据。当日复审新增 2 个文档修正提交后，仓库实为 11 个提交、2 位贡献者（ZacharyZcR 9、Guiyuan1111 2）。
+
 ### Code Review 与发布流程
 
 - 无 PR 模板、无 review 配置（无 `.github/` 目录）。
 - 无版本发布流程：`pyproject.toml:3` 与 `src/vmware_mcp/__init__.py:3` 均为 `0.1.0`，无 Tag、无 CHANGELOG。
 - 无测试门禁，任何提交可直接到达 master。
 
-### 隐含的"AI 协作开发"痕迹
+### 隐含的"AI 协作开发"痕迹（推断，非事实认定）
 
 提交信息风格与单一直线历史、一次性大批量工具接入（`f2e74c7`）符合 AI 结对开发的产出特征；README 以中文维护（`README.md:3`），面向中文用户群。

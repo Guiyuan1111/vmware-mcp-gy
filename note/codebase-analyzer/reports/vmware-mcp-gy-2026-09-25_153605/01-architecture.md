@@ -152,7 +152,7 @@ graph TD
 
 ## 5. 函数级调用链（全覆盖）
 
-### 5.1 server.py（9 个函数/入口）
+### 5.1 server.py（10 个函数/入口）
 
 | 函数 | 签名 | 位置 | 行数 | 调用去向 |
 |------|------|------|------|---------|
@@ -164,7 +164,8 @@ graph TD
 | `list_tools` | `async () -> list[Tool]`（装饰器 `@server.list_tools()`） | `server.py:56-224` | 169 | `T` ×130 |
 | `call_tool` | `async (name: str, arguments: dict) -> list[TextContent]`（装饰器 `@server.call_tool()`） | `server.py:227-514` | 288 | 三个适配器全部公共方法 |
 | `vmx`（`call_tool` 内嵌套闭包） | `async (vm_id: str) -> str` | `server.py:236-237` | 2 | `get_vmx_path` |
-| `main` / `run`（嵌套） | `() -> None` / `async () -> None` | `server.py:517-524` | 8 | `stdio_server` → `server.run` |
+| `main` | `() -> None` | `server.py:517-524` | 8 | `asyncio.run(run())` |
+| `run`（main 内嵌套闭包） | `async () -> None` | `server.py:520-522` | 3 | `stdio_server` → `server.run` |
 
 #### 调用链 1：REST 工具（以 `vm_list` 为例）
 
@@ -277,7 +278,7 @@ main()                                      server.py:517
 | Tools | `install_tools`（196-197）、`check_tools_state`（199-200） | `installTools`/`checkToolsState` |
 | Network | `get_guest_ip`（203-207）、`list_host_networks`（209-210）、`list_port_forwardings`（212-213）、`set_port_forwarding`（215-219）、`delete_port_forwarding`（221-222） | `getGuestIPAddress` 等 5 个命令 |
 
-**异步/并发点标注**：`_run` 中 `create_subprocess_exec` + `communicate()`（`vmrun.py:25-30`）是全类唯一的异步点；无并发控制（同一 VM 的并发命令由 VMware 自身仲裁）。
+**异步/并发点标注**：`_run` 中 `create_subprocess_exec` + `communicate()`（`vmrun.py:25-30`）是全类唯一的异步点；无并发控制（同一 VM 的并发命令最终行为由 VMware 底层决定——推断，未验证）。
 
 ### 5.4 vmcli.py（69 个方法）
 
