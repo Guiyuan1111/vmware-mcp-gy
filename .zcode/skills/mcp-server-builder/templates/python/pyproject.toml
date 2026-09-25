@@ -1,0 +1,18 @@
+[project]
+name = "my-mcp-server"
+version = "0.1.0"
+description = "MCP server (official Python SDK v2)"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=2,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "anyio>=4",
+]
+
+# Run / debug (the [cli] extra provides the `mcp` command; install ad hoc):
+#   uv run --with "mcp[cli]" mcp dev src/server.py     # Inspector
+#   uv run --with "mcp[cli]" mcp run src/server.py     # direct run
