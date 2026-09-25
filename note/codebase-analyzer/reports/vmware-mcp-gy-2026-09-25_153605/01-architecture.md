@@ -132,7 +132,7 @@ graph TD
 
 ### 模式 2：注册表 + 巨型分发（Registry + Mega Dispatcher）
 
-- **判断依据**：`list_tools()` 返回 130 个 `T(...)` 构造的工具定义（`server.py:56-224`），`call_tool()` 用约 285 行的 if/elif 链按工具名分发（`server.py:239-510`）。
+- **判断依据**：`list_tools()` 返回 130 个 `T(...)` 构造的工具定义（`server.py:56-224`），`call_tool()` 用约 272 行的 if/elif 链按工具名分发（`server.py:239-510`）。
 - **表现位置**：`server.py:48-53` 的 `T()` 工厂函数统一构造 `Tool(name, description, inputSchema)`。
 - **特征**：工具"声明"（schema）与工具"实现"（分发分支）分离在两个函数中，靠字符串名称人工对齐——没有映射表保证一致性（这是本架构最主要的结构性风险，详见 04 报告）。
 
@@ -344,5 +344,5 @@ main()                                      server.py:517
 
 1. **声明/实现漂移**：`list_tools()` 与 `call_tool()` 之间的对齐完全靠人工维护字符串名。任何一侧改动（改名、漏分支）都会在运行时表现为"工具存在但调用落空"——且 `server.py:512-514` 会把落空静默包装为 `OK`，掩盖错误。
 2. **静默失败路径**：`get_vmx_path` 对查不到的 VM 返回空字符串 `""`（`server.py:45`），空 vmx 路径继续传给 vmrun/vmcli，最终由 CLI 报错，错误语义丢失。
-3. **安全面**：guest 密码经命令行参数 `-gp` 传递（`vmrun.py:22-23`），宿主机进程列表可见；REST 关闭 TLS 证书校验（`client.py:15`）。
+3. **安全面**：guest 密码经命令行参数 `-gp` 传递（`vmrun.py:20-21`），宿主机进程列表可见；REST 关闭 TLS 证书校验（`client.py:15`）。
 4. **无测试/无 CI**：130 个工具全部无自动化验证，回归依赖人工。

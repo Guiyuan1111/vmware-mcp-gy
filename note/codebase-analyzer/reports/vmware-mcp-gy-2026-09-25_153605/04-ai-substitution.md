@@ -71,7 +71,7 @@
 
 **接口契约要点**（`_run`，`vmrun.py:16-38`）：前置条件为 `VMRUN_PATH` 指向的 vmrun.exe 存在；后置条件为 returncode 0 时返回 stdout 文本；错误场景为非零退出 → `RuntimeError("vmrun failed: ...")`（stderr 优先回退 stdout）。
 
-**风险与限制**：guest 凭据经 argv 传递（`vmrun.py:22-23`）是现存安全隐患，AI 重生成时建议评估 stdin/env 传递方案；`run_program` 的 `args.split()`（`vmrun.py:138`）对含空格参数会错误分词，需人工确认是否改为列表参数。
+**风险与限制**：guest 凭据经 argv 传递（`vmrun.py:20-21`）是现存安全隐患，AI 重生成时建议评估 stdin/env 传递方案；`run_program` 的 `args.split()`（`vmrun.py:138`）对含空格参数会错误分词，需人工确认是否改为列表参数。
 
 **优先级**：⭐⭐⭐ 高 — Quick Win
 
@@ -232,7 +232,7 @@
 - `arguments` 必须满足对应 `T()` 声明的 schema；必填项缺失触发 `KeyError`（无友好校验）
 
 **后置条件**：
-- 返回单元素 `list[TextContent]`；`str` 结果原样（空串 → `"OK"`），结构化结果 `json.dumps(indent=2)`，`None` → `"null"` 或 `"OK"`
+- 返回单元素 `list[TextContent]`；`str` 结果原样（空串 → `"OK"`），结构化结果 `json.dumps(indent=2)`，`None`/空值 → `"OK"`（静默成功，缺陷）
 
 **错误场景**：
 

@@ -156,10 +156,10 @@ _run() 子进程结束  (vmrun.py:30 / vmcli.py:30)
 | vmrun 默认路径 | `C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe` | `vmrun.py:13` |
 | vmcli 默认路径 | `C:\Program Files (x86)\VMware\VMware Workstation\vmcli.exe` | `vmcli.py:15` |
 | vmrun 目标类型 | `-T ws`（Workstation） | `vmrun.py:17` |
-| 默认克隆类型 | linked | `server.py:290`、`vmcli.py:54`（vmrun 版） |
+| 默认克隆类型 | linked | `server.py:290`（vmrun 版）、`server.py:390` 与 `vmcli.py:54`（vmcli 版） |
 | 默认磁盘类型 | scsi | `server.py:438` |
 | vmrun_start 默认 GUI | True | `server.py:296` |
-| snapshot_revert 删除子快照默认值 | False | `server.py:312,388` |
+| snapshot_delete 删除子快照默认值 | False | `server.py:312,388` |
 
 **超时类常量缺失**：HTTP 与子进程均无超时设定（见 02 报告第 6 节），属"应有而未有"的规则。
 
@@ -188,7 +188,7 @@ _run() 子进程结束  (vmrun.py:30 / vmcli.py:30)
 ### 分支策略
 
 - **主分支**：`master`（`git branch` 输出），生产部署方式为 `pip install -e .`（`README.md:26`）。
-- **远程**：`origin`（ZacharyZcR/vmware-mcp）与 `upstream` 两个远端并存，说明本仓库是某个上游项目的 fork 改造版（`git branch -a` 输出）。
+- **远程**：`origin`（Guiyuan1111/vmware-mcp-gy）与 `upstream`（ZacharyZcR/vmware-mcp）两个远端并存，说明本仓库是上游项目的 fork 改造版（`git remote -v` 输出）。
 - 无 develop/release/feature 分支模式，单人直线式提交。
 
 ### 提交历史分析（9 个提交，1 位贡献者 ZacharyZcR）

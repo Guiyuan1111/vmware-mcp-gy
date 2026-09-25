@@ -173,7 +173,7 @@ return [TextContent(type="text", text=json.dumps(result, indent=2) if result els
 
 - REST 通道产物为 `dict/list` → JSON 美化序列化；`vm_list` 分支还顺带填充 `_vm_path_cache`（`server.py:242-243`）。
 - vmrun/vmcli 通道产物为 `str` → 原样返回；空串规范化为 `"OK"`。
-- **潜在缺陷**：`result is None`（工具名未匹配任何分支，或方法返回 `None` 如 REST 的 delete 类在 `server.py:249-250` 已被手工补了 `{"status": "deleted"}`，但若新增方法忘记补）→ 落入 `json.dumps(None) → "null"`；而**未知工具名**会静默返回 `"OK"`，无错误提示。
+- **潜在缺陷**：`result` 为 `None`（工具名未匹配任何分支，或方法返回 `None`——REST 的 delete 类在 `server.py:249-250` 已被手工补了 `{"status": "deleted"}`，但若新增方法忘记补）时，因 `if result` 判假同样落入 `"OK"` 分支，**静默成功**，无错误提示。
 
 ---
 
@@ -192,7 +192,7 @@ return [TextContent(type="text", text=json.dumps(result, indent=2) if result els
 
 ### VM 电源状态机（从代码提取）
 
-REST 通道的 `vm_power_set` 接受 6 个状态值（`server.py:68` 的 enum：`on/off/shutdown/suspend/pause/unpause`），vmrun 通道提供 6 个电源动词（`vmrun.py:41-57`），vmcli 通道提供 7 个（`vmcli.py:202-221`，多一个 `Reset`）。合并后的状态机：
+REST 通道的 `vm_power_set` 接受 6 个状态值（`server.py:68` 的 enum：`on/off/shutdown/suspend/pause/unpause`），vmrun 通道提供 6 个电源动词（`vmrun.py:41-57`），vmcli 通道提供 7 个电源命令（`vmcli.py:202-221`，比 vmrun 多一个 `query` 查询）。合并后的状态机：
 
 ```mermaid
 stateDiagram-v2
@@ -221,7 +221,7 @@ mcp SDK 内部钩子不在本项目代码内；项目自身只有两个装饰器
 
 - **数据库**：无。
 - **持久化面**：所有状态变更（电源、快照、磁盘、配置参数）均落在 **VMware Workstation 自身**（vmx 文件、vmsn 快照、vmdk 磁盘），由 REST API/CLI 写入；本项目代码不直接读写任何文件（`vmrun_screenshot`/`mks_screenshot` 的 `output_path` 由 vmrun/vmcli 进程写入，Python 侧仅传路径，`vmrun.py:189-190`、`vmcli.py:141-142`）。
-- **配置来源**：全部经环境变量（见第 3 节），无 `.env` 加载代码（`.gitignore:9` 忽略 `.env` 文件，但代码未使用 dotenv）。
+- **配置来源**：全部经环境变量（见第 3 节），无 `.env` 加载代码（`.gitignore:11` 忽略 `.env` 文件，但代码未使用 dotenv）。
 
 ---
 

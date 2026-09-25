@@ -143,7 +143,7 @@ Grep 校验：T() 名称与 elif 分支名称逐字符一致；方法名无重�
 ````markdown
 ## Constraints
 - Always 委托 _run()，禁止在封装方法里直接 create_subprocess_exec
-- Always guest 凭据参数命名 user/password 且默认空串（与既有 46+10 个方法一致）
+- Always guest 凭据参数命名 user/password 且默认空串（与既有 26 个带 guest 凭据的方法一致：vmrun 16 个 + vmcli 10 个）
 - Always 三件套一次生成，名称逐字符对齐（避免静默落空，server.py:512-514）
 - Always 新方法的返回类型注解为 str（stdout 文本）
 - Never 为命令执行添加 try/except 吞异常或"失败返回 OK"

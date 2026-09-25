@@ -4,13 +4,13 @@
 
 ## 功能特性
 
-**117 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
+**130 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
 
 | 来源 | 工具数 | 描述 |
 |------|--------|------|
-| REST API | 20 | 虚拟机管理、网卡、共享文件夹、端口转发 |
-| vmrun | 54 | 电源、快照、克隆、客户机文件/进程操作、设备 |
-| vmcli | 43 | 芯片组、磁盘、网卡、SATA、NVMe、串口、VProbes |
+| REST API | 19 | 虚拟机管理、网卡、共享文件夹、端口转发 |
+| vmrun | 46 | 电源、快照、克隆、客户机文件/进程操作、设备 |
+| vmcli | 65 | 芯片组、磁盘、网卡、SATA、NVMe、串口、VProbes |
 
 ## 环境要求
 
@@ -21,7 +21,7 @@
 ## 安装
 
 ```bash
-git clone https://github.com/ZacharyZcR/vmware-mcp.git
+git clone https://github.com/Guiyuan1111/vmware-mcp-gy.git
 cd vmware-mcp
 pip install -e .
 ```
@@ -56,7 +56,7 @@ claude mcp add vmware-mcp \
 | `vm_delete` | 删除虚拟机 |
 | `vm_update` | 更新虚拟机 CPU/内存 |
 | `vm_power_get` | 获取电源状态 |
-| `vm_power_set` | 设置电源状态（开/关/挂起/暂停） |
+| `vm_power_set` | 设置电源状态（on/off/shutdown/suspend/pause/unpause） |
 | `vm_nic_list` | 列出网络适配器 |
 | `vm_nic_create` | 创建网络适配器 |
 | `vm_nic_delete` | 删除网络适配器 |

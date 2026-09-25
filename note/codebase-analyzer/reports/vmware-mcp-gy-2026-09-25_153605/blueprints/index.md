@@ -22,7 +22,7 @@
 4. **MCP 工具三件套注册** (`blueprints/03-mcp-tool-registrar.md`) — 将"声明/分支/封装/文档"固化为原子流程，消除 `list_tools()`（`server.py:56-224`）与 `call_tool()`（`server.py:239-510`）之间靠字符串人工对齐的结构性风险
 
 ### 人工主导（不出 Blueprint）
-- 架构演进决策：通道去重、错误体系统一、安全加固（guest 凭据 argv 传递 `vmrun.py:22-23`、TLS 校验关闭 `client.py:15`）——AI 仅提供分析输入
+- 架构演进决策：通道去重、错误体系统一、安全加固（guest 凭据 argv 传递 `vmrun.py:20-21`、TLS 校验关闭 `client.py:15`）——AI 仅提供分析输入
 
 ## 使用说明
 

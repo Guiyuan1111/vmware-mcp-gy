@@ -56,7 +56,7 @@ interface ToolSchema {
 }
 
 // call_tool 统一出口的返回规则（server.py:512-514）
-// str  → 原样（空串 → "OK"）；dict/list → json.dumps(indent=2)；None → "OK"/"null"（缺陷）
+// str  → 原样（空串 → "OK"）；dict/list → json.dumps(indent=2)；None/空值 → "OK"（未匹配分支与空结果均被静默掩盖，缺陷）
 ```
 
 ### 错误码
