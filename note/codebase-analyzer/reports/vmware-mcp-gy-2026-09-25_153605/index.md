@@ -54,3 +54,5 @@
 > 下文各报告正文中"README 声称 117"等表述保留分析时点的历史记录，以本审查记录为准。
 
 > **附记（2026-09-25 晚，版本 0.2.0）**：依据同目录三份使用复盘文档完成 P0/P1/P2 改造（详见 `note/release/0.2.0.md`）后，本报告的时点数据已过时，以最新代码为准：工具 130 → **137**（REST 19 + vmrun 48 + vmcli 65 + server 5）；上表"未修复"项中——发现 2（静默失败两处）、发现 5（零测试/零超时）已在本版本修复；发现 4（死方法）、发现 6（`-gp` argv 明文、`verify=False`）仍未处理；发现 3 的"未匹配显式报错"已随 0.2.0 落地，路由表化未做。`note` 文件夹中其余报告均为 130 工具时点快照，不再逐一回改。
+>
+> **相关调研（2026-09-26）**：AI/LLM Agent 调用 VMware 自动化管理的生态调研（MCP server 对比、只读护栏最佳实践、Broadcom 官方 AI 助手）见 [`note/research/2026-09-26-ai-agent-vmware-automation-survey.md`](../../../research/2026-09-26-ai-agent-vmware-automation-survey.md)。其"护栏三层设计"（confirm → dry-run → 全局只读开关）是本报告 Blueprint 04 与 0.2.0 之后下一步演进的直接参考。
