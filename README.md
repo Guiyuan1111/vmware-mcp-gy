@@ -4,13 +4,14 @@
 
 ## 功能特性
 
-**130 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
+**137 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
 
 | 来源 | 工具数 | 描述 |
 |------|--------|------|
 | REST API | 19 | 虚拟机管理、网卡、共享文件夹、端口转发 |
-| vmrun | 46 | 电源、快照、克隆、客户机文件/进程操作、设备 |
+| vmrun | 48 | 电源、快照、克隆、客户机文件/进程操作、目录树传输 |
 | vmcli | 65 | 芯片组、磁盘、网卡、SATA、NVMe、串口、VProbes |
+| server | 5 | 加密密码管理、VM 解析/体检、日志尾部、截屏 OCR |
 
 ## 环境要求
 
@@ -43,6 +44,51 @@ claude mcp add vmware-mcp \
   -e VMWARE_USERNAME=your_username \
   -e VMWARE_PASSWORD=your_password \
   -- vmware-mcp
+```
+
+## 环境变量
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `VMWARE_HOST` | `localhost` | vmrest 地址 |
+| `VMWARE_PORT` | `8697` | vmrest 端口 |
+| `VMWARE_USERNAME` / `VMWARE_PASSWORD` | 空 | vmrest 凭据 |
+| `VMRUN_PATH` / `VMCLI_PATH` | `(x86)` 安装路径 | vmrun/vmcli 可执行文件路径 |
+| `VMWARE_ENC_PASSWORD` | 空 | 加密 VM 全局密码（对 vmrun 系工具生效） |
+| `VMWARE_TIMEOUT_QUERY` | `30` | 查询类工具超时（秒） |
+| `VMWARE_TIMEOUT_POWER` | `90` | 电源类工具超时（秒） |
+| `VMWARE_TIMEOUT_LONG` | `600` | clone/upgrade/模板/磁盘等长任务超时（秒） |
+
+## 加密虚拟机
+
+vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低，可叠加）：
+
+1. 工具参数 `enc_pass`（全部带 `vm_id` 的 `vmrun_*` 工具均支持）；
+2. `set_vm_encryption_password` 预存（按 vmx 记忆，存于服务进程内存）；
+3. env `VMWARE_ENC_PASSWORD`。
+
+注意：REST/vmrest 与 vmcli 通道对加密 VM 的支持未经验证——**加密 VM 请使用 `vmrun_*` 工具族**。子进程 stdin 已隔离，加密 VM + 无密码时 vmrun 会在数秒内报错返回（不再挂死到客户端 30s 超时）。
+
+## 错误格式与超时
+
+失败调用返回结构化 JSON（成功路径保持原有文本/JSON 不变）：
+
+```json
+{"ok": false, "tool": "vmrun_start", "error": "vmrun failed: ...", "exit_code": 1, "stdout": "", "stderr": "...", "duration_ms": 320, "timeout": false, "hint": "VM 已加密：提供 enc_pass 参数，或设置 VMWARE_ENC_PASSWORD"}
+```
+
+`hint` 是针对常见错误（要加密密码/密码错误/guest 空密码/Tools 未装/路径不存在）的一句话下一步建议。子进程按工具类别强制超时并杀进程（僵尸 vmrun 不再存活）；输出按 utf-8 → gb18030 解码（中文 Windows 控制台不再乱码）。
+
+### 0.2.0 破坏性变更
+
+- `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
+
+## 测试
+
+```bash
+pip install -e ".[dev]"
+pytest                              # 单元测试（无需 VMware）
+VMWARE_IT=1 pytest -m integration   # 集成测试（需真实 VMware 环境）
 ```
 
 ## 工具列表
@@ -97,6 +143,8 @@ claude mcp add vmware-mcp \
 | `vmrun_copy_to` | 复制文件到客户机 |
 | `vmrun_copy_from` | 从客户机复制文件 |
 | `vmrun_temp_file` | 在客户机创建临时文件 |
+| `vmrun_copy_dir_to` | 递归复制目录树到客户机（include/exclude 后缀过滤） |
+| `vmrun_copy_dir_from` | 递归复制客户机目录树到宿主机 |
 | `vmrun_run` | 在客户机运行程序 |
 | `vmrun_script` | 在客户机运行脚本 |
 | `vmrun_ps` | 列出客户机进程 |
@@ -188,6 +236,15 @@ claude mcp add vmware-mcp \
 | `vprobes_enable` | 启用 VProbes |
 | `vprobes_load` | 加载 VProbes 脚本 |
 | `vprobes_reset` | 重置 VProbes |
+
+### server 工具
+| 工具 | 描述 |
+|------|------|
+| `set_vm_encryption_password` | 预存加密 VM 密码（进程内存，按 vmx 记忆） |
+| `vm_resolve` | 模糊名/路径片段解析 VM（vmx 路径 + 电源 + 加密类型） |
+| `vm_health` | 一次返回电源/Tools/IP/加密/空闲挂起判据/log 尾部 |
+| `vm_log_tail` | 读 vmware.log 尾部 N 行 |
+| `screenshot_ocr` | VM 截屏并 OCR 成文本（需 `pip install ".[ocr]"`） |
 
 ## 许可证
 
