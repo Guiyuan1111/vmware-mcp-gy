@@ -503,16 +503,43 @@ async def _h_vm_resolve(a, vmx):
     vms = await client.list_vms()
     for vm in vms:
         _vm_path_cache[vm["id"]] = vm["path"]
-    resolved = []
-    for vm in vms:
-        if query in str(vm.get("path", "")).lower() or query in str(vm.get("id", "")).lower():
-            entry = {"id": vm.get("id"), "path": vm.get("path"), "encryptionType": _vmx_encryption(vm.get("path", ""))}
-            try:
-                entry["power"] = await client.get_power_state(vm["id"])
-            except Exception as e:
-                entry["power"] = f"unavailable: {type(e).__name__}: {e}"
-            resolved.append(entry)
+    matches = [vm for vm in vms if query in str(vm.get("path", "")).lower() or query in str(vm.get("id", "")).lower()]
+    # 多匹配的电源查询互不依赖，并发执行（gather 保序，结果与串行版逐字段一致）
+    powers = await asyncio.gather(*(_resolve_power(client, vm["id"]) for vm in matches))
+    resolved = [
+        {"id": vm.get("id"), "path": vm.get("path"), "encryptionType": _vmx_encryption(vm.get("path", "")), "power": p}
+        for vm, p in zip(matches, powers)
+    ]
     return {"query": a["query"], "count": len(resolved), "matches": resolved}
+
+
+async def _resolve_power(client, vm_id):
+    try:
+        return await client.get_power_state(vm_id)
+    except Exception as e:
+        return f"unavailable: {type(e).__name__}: {e}"
+
+
+async def _health_running(vmrun, vmx_path):
+    try:
+        listing = await vmrun.list_running()
+        return vmx_path.lower() in listing.lower()
+    except ToolError as e:
+        return f"unknown: {e}"
+
+
+async def _health_tools(vmrun, vmx_path):
+    try:
+        return await vmrun.check_tools_state(vmx_path)
+    except ToolError as e:
+        return f"error: {e}"
+
+
+async def _health_ip(vmrun, vmx_path):
+    try:
+        return await vmrun.get_guest_ip(vmx_path)
+    except ToolError:
+        return None
 
 
 async def _h_vm_health(a, vmx):
@@ -520,19 +547,10 @@ async def _h_vm_health(a, vmx):
     vmx_path = await vmx(a["vm_id"])
     vmdir = os.path.dirname(vmx_path) or "."
     health = {"vm_id": a["vm_id"], "vmx": vmx_path, "encryptionType": _vmx_encryption(vmx_path)}
-    try:
-        listing = await vmrun.list_running()
-        health["running"] = vmx_path.lower() in listing.lower()
-    except ToolError as e:
-        health["running"] = f"unknown: {e}"
-    try:
-        health["tools"] = await vmrun.check_tools_state(vmx_path)
-    except ToolError as e:
-        health["tools"] = f"error: {e}"
-    try:
-        health["ip"] = await vmrun.get_guest_ip(vmx_path)
-    except ToolError:
-        health["ip"] = None
+    # 三个只读探测互不依赖，并发执行（并发上限仍由 vmrun._run 的全局信号量约束）；异常语义与原串行版一致
+    health["running"], health["tools"], health["ip"] = await asyncio.gather(
+        _health_running(vmrun, vmx_path), _health_tools(vmrun, vmx_path), _health_ip(vmrun, vmx_path),
+    )
     vmem = glob.glob(os.path.join(vmdir, "*.vmem"))
     vmss = glob.glob(os.path.join(vmdir, "*.vmss"))
     health["suspend_artifacts"] = {"vmem": vmem, "vmss": vmss}
@@ -783,8 +801,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         raise ToolError(f"Unknown tool: {name}", tool=name, hint="工具名不存在；以 list_tools 返回为准")
     if isinstance(result, str):
         return [TextContent(type="text", text=_truncate_output(result) if result else "OK")]
-    return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
-    return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
+    return [TextContent(type="text", text=_truncate_output(_dumps(result)) if result else "OK")]
+
+
+def _dumps(result) -> str:
+    """成功路径 JSON 序列化：默认 indent=2（兼容现状）；VMWARE_COMPACT_OUTPUT=1 时紧凑输出。
+    失败路径（_error_content）不受影响，保持缩进便于人工排查。"""
+    if os.getenv("VMWARE_COMPACT_OUTPUT", "").strip().lower() in ("1", "true", "yes", "on"):
+        return json.dumps(result, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 def _setup_logging() -> None:

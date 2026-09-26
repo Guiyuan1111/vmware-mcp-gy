@@ -1706,11 +1706,23 @@
     [
      "list_running",
      []
+    ],
+    [
+     "check_tools_state",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ],
+    [
+     "get_guest_ip",
+     [
+      "D:/vms/bench.vmx"
+     ]
     ]
    ]
   },
   "result": [
-   "{\n  \"ok\": false,\n  \"tool\": \"vm_health\",\n  \"error\": \"AttributeError: 'dict' object has no attribute 'lower'\",\n  \"hint\": \"\"\n}"
+   "{\n  \"vm_id\": \"D:/vms/bench.vmx\",\n  \"vmx\": \"D:/vms/bench.vmx\",\n  \"encryptionType\": \"unknown\",\n  \"running\": false,\n  \"tools\": {\n    \"fake\": \"check_tools_state\"\n  },\n  \"ip\": {\n    \"fake\": \"get_guest_ip\"\n  },\n  \"suspend_artifacts\": {\n    \"vmem\": [],\n    \"vmss\": []\n  },\n  \"log_tail\": \"(无法读取 D:/vms\\\\vmware.log: [Errno 2] No such file or directory: 'D:/vms\\\\\\\\vmware.log')\"\n}"
   ]
  },
  "vm_ip_get": {
@@ -2295,7 +2307,7 @@
    ]
   },
   "result": [
-   "{\n  \"fake\": \"list_running\"\n}"
+   "Total running VMs: 0"
   ]
  },
  "vmrun_ls": {

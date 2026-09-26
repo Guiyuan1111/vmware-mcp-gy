@@ -27,6 +27,8 @@ FIRST_ENUM = True
 def _fake_return(method):
     if method == "list_vms":
         return []  # 唯一被迭代的集合返回值
+    if method == "list_running":
+        return "Total running VMs: 0"  # vm_health 对返回值调 .lower()，须为字符串
     return {"fake": method}
 
 

@@ -3,6 +3,7 @@
 import asyncio
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -536,3 +537,134 @@ def test_decode_output_ascii_fast_path():
     gbk = "虚拟机".encode("gb18030")
     assert decode_output(gbk) == "虚拟机"
     assert decode_output(b"\xff\xfe invalid") .endswith("invalid")  # 双双失败退 replace
+
+
+# ---------- 轮6：组合工具内部并发化（旧串行语义参照） ----------
+
+class _SlowFake:
+    """慢桩：每次调用记录并睡 0.15s，证明并发重叠；raises 可让指定方法抛 ToolError。"""
+
+    def __init__(self, raises=(), fail_ip=False):
+        self.raises = raises
+        self.fail_ip = fail_ip
+        self.calls = []
+
+    async def _m(self, name, *args):
+        self.calls.append(name)
+        await asyncio.sleep(0.15)
+        if name in self.raises:
+            raise ToolError(f"boom: {name}")
+        return f"out-{name}"
+
+    def list_running(self):
+        return self._m("list_running")
+
+    def check_tools_state(self, vmx):
+        return self._m("check_tools_state", vmx)
+
+    def get_guest_ip(self, vmx, wait=False):
+        return self._m("get_guest_ip", vmx)
+
+
+async def _serial_reference(vmrun, vmx_path):
+    """0.3.1 及以前的串行语义（逐字对照原 _h_vm_health 探测段）。"""
+    out = {}
+    try:
+        listing = await vmrun.list_running()
+        out["running"] = vmx_path.lower() in listing.lower()
+    except ToolError as e:
+        out["running"] = f"unknown: {e}"
+    try:
+        out["tools"] = await vmrun.check_tools_state(vmx_path)
+    except ToolError as e:
+        out["tools"] = f"error: {e}"
+    try:
+        out["ip"] = await vmrun.get_guest_ip(vmx_path)
+    except ToolError:
+        out["ip"] = None
+    return out
+
+
+def test_vm_health_concurrent_matches_serial_semantics(monkeypatch):
+    fake = _SlowFake()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    t0 = time.monotonic()
+    h = asyncio.run(server._h_vm_health({"vm_id": "D:/vms/a.vmx"}, _identity_vmx_test))
+    elapsed = time.monotonic() - t0
+    assert fake.calls == ["list_running", "check_tools_state", "get_guest_ip"]  # 调用序列不变（黄金快照同序）
+    ref = asyncio.run(_serial_reference(_SlowFake(), "D:/vms/a.vmx"))  # 新 fake：参照不污染调用记录
+    assert h["running"] == ref["running"] and h["tools"] == ref["tools"] and h["ip"] == ref["ip"]
+    assert elapsed < 0.40, f"未并发：{elapsed:.2f}s（串行应 ~0.45s）"  # 0.15s 重叠 ≈ 0.15-0.2s
+
+
+def test_vm_health_concurrent_error_branches_match_serial(monkeypatch):
+    fake = _SlowFake(raises=("list_running", "check_tools_state", "get_guest_ip"))
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    h = asyncio.run(server._h_vm_health({"vm_id": "D:/vms/a.vmx"}, _identity_vmx_test))
+    assert h["running"] == "unknown: boom: list_running"
+    assert h["tools"] == "error: boom: check_tools_state"
+    assert h["ip"] is None
+
+
+async def _identity_vmx_test(vm_id):
+    return vm_id
+
+
+def test_vm_resolve_concurrent_power_matches_serial(monkeypatch):
+    class _FakeClient:
+        def __init__(self):
+            self.power_calls = []
+
+        async def list_vms(self):
+            return [
+                {"id": "vm-1", "path": "D:/vms/win11.vmx"},
+                {"id": "vm-2", "path": "D:/vms/ubuntu.vmx"},
+                {"id": "vm-3", "path": "D:/vms/win11-test.vmx"},
+                {"id": "vm-4", "path": "D:/vms/other.vmx"},
+            ]
+
+        async def get_power_state(self, vm_id):
+            self.power_calls.append(vm_id)
+            await asyncio.sleep(0.1)
+            if vm_id == "vm-3":
+                raise RuntimeError("rest down")
+            return "poweredOn"
+
+    fc = _FakeClient()
+    monkeypatch.setattr(server, "get_client", lambda: fc)
+    monkeypatch.setattr(server, "_vm_path_cache", {})
+    t0 = time.monotonic()
+    r = asyncio.run(server._h_vm_resolve({"query": "win11"}, _identity_vmx_test))
+    elapsed = time.monotonic() - t0
+    assert r["count"] == 2  # win11.vmx 与 win11-test.vmx
+    assert r["matches"][0]["power"] == "poweredOn"
+    assert str(r["matches"][1]["power"]).startswith("unavailable: RuntimeError")
+    assert fc.power_calls == ["vm-1", "vm-3"]  # 保序
+    assert elapsed < 0.25, f"未并发：{elapsed:.2f}s（串行应 ~0.2s+）"
+
+
+# ---------- 轮7：紧凑输出 ----------
+
+def test_compact_output_default_keeps_indent(monkeypatch):
+    monkeypatch.delenv("VMWARE_COMPACT_OUTPUT", raising=False)
+    result = asyncio.run(server.call_tool("vm_list", {}))
+    # 桩返回 [] 时空结果走 "OK"；换非空桩
+    class _FakeClient:
+        async def list_vms(self):
+            return [{"id": "vm-1", "path": "D:/vms/a.vmx"}]
+    monkeypatch.setattr(server, "get_client", lambda: _FakeClient())
+    result = asyncio.run(server.call_tool("vm_list", {}))
+    assert "\n" in result[0].text and '  "id"' in result[0].text
+
+
+def test_compact_output_on(monkeypatch):
+    class _FakeClient:
+        async def list_vms(self):
+            return [{"id": "vm-1", "path": "D:/vms/a.vmx"}]
+    monkeypatch.setattr(server, "get_client", lambda: _FakeClient())
+    monkeypatch.setenv("VMWARE_COMPACT_OUTPUT", "1")
+    compact = asyncio.run(server.call_tool("vm_list", {}))[0].text
+    monkeypatch.delenv("VMWARE_COMPACT_OUTPUT")
+    pretty = asyncio.run(server.call_tool("vm_list", {}))[0].text
+    assert "\n" not in compact and ": " not in compact
+    assert json.loads(compact) == json.loads(pretty)  # 值完全一致，仅序列化形式不同
