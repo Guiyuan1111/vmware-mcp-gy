@@ -230,8 +230,12 @@ def _structured(fn):
     return wrapper
 
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
+_TOOLS_CACHE: list[Tool] | None = None
+
+
+def _build_tools() -> list[Tool]:
+    """构建全部 137 个工具定义（含 enc_pass/vm_id/confirm 注入与 annotations）。
+    结果进程内缓存：工具集在运行期不变，tools/list 每次重建纯属浪费。"""
     tools = [
         # ==================== SERVER ====================
         T("set_vm_encryption_password", "server｜预存加密 VM 的密码（按解析后的 vmx 路径记忆，进程内存）。加密 VM 调 vmrun 系工具前先调用；持久方案用 env VMWARE_ENC_PASSWORD。无副作用", {"vm_id": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "password"]),
@@ -432,6 +436,14 @@ async def list_tools() -> list[Tool]:
         if tool.name in DESTRUCTIVE_TOOLS or tool.name == "vm_power_set":
             props["confirm"] = dict(confirm_schema)
     return tools
+
+
+@server.list_tools()
+async def list_tools() -> list[Tool]:
+    global _TOOLS_CACHE
+    if _TOOLS_CACHE is None:
+        _TOOLS_CACHE = _build_tools()
+    return _TOOLS_CACHE
 
 
 @server.call_tool()
