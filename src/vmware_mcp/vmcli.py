@@ -2,11 +2,10 @@
 
 import asyncio
 import os
-import json
 import time
 
 from .errors import ToolError
-from .runtime import decode_output, env_int, env_timeout
+from .runtime import decode_output, env_int, env_timeout, redact_secrets
 
 # 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
 _POWER_MODULES = {"Power"}
@@ -34,7 +33,7 @@ class VMCli:
             r"C:\Program Files (x86)\VMware\VMware Workstation\vmcli.exe"
         )
 
-    async def _run(self, vmx_path: str | None, module: str, command: str, *args: str, timeout: float | None = None) -> str:
+    async def _run(self, vmx_path: str | None, module: str, command: str, *args: str, timeout: float | None = None, secret_values: tuple[str, ...] = ()) -> str:
         cmd = [self.vmcli_path]
         if vmx_path:
             cmd.append(vmx_path)
@@ -63,12 +62,12 @@ class VMCli:
                     hint="长任务可用 VMWARE_TIMEOUT_LONG 提高上限",
                 )
         duration_ms = int((time.monotonic() - started) * 1000)
-        out = decode_output(stdout)
-        err = decode_output(stderr)
+        out = redact_secrets(decode_output(stdout), secret_values)
+        err = redact_secrets(decode_output(stderr), secret_values)
 
         if proc.returncode != 0:
             raise ToolError(
-                f"vmcli failed: {err.strip()}",
+                f"vmcli failed: {redact_secrets(err.strip(), secret_values)}",
                 exit_code=proc.returncode,
                 stdout=out.strip(),
                 stderr=err.strip(),
@@ -105,7 +104,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "run", *cmd_args)
+        return await self._run(vmx_path, "Guest", "run", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_ps(self, vmx_path: str, user: str = "", password: str = "") -> str:
         cmd_args = []
@@ -113,7 +112,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "ps", *cmd_args)
+        return await self._run(vmx_path, "Guest", "ps", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_kill(self, vmx_path: str, pid: int, user: str = "", password: str = "") -> str:
         cmd_args = ["--pid", str(pid)]
@@ -121,7 +120,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "kill", *cmd_args)
+        return await self._run(vmx_path, "Guest", "kill", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_ls(self, vmx_path: str, path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-d", path]
@@ -129,7 +128,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "ls", *cmd_args)
+        return await self._run(vmx_path, "Guest", "ls", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_mkdir(self, vmx_path: str, path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-d", path]
@@ -137,7 +136,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "mkdir", *cmd_args)
+        return await self._run(vmx_path, "Guest", "mkdir", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_rm(self, vmx_path: str, path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-f", path]
@@ -145,7 +144,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "rm", *cmd_args)
+        return await self._run(vmx_path, "Guest", "rm", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_rmdir(self, vmx_path: str, path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-d", path]
@@ -153,7 +152,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "rmdir", *cmd_args)
+        return await self._run(vmx_path, "Guest", "rmdir", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_copy_to(self, vmx_path: str, host_path: str, guest_path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-l", host_path, "-r", guest_path]
@@ -161,7 +160,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "copyTo", *cmd_args)
+        return await self._run(vmx_path, "Guest", "copyTo", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_copy_from(self, vmx_path: str, guest_path: str, host_path: str, user: str = "", password: str = "") -> str:
         cmd_args = ["-r", guest_path, "-l", host_path]
@@ -169,7 +168,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "copyFrom", *cmd_args)
+        return await self._run(vmx_path, "Guest", "copyFrom", *cmd_args, secret_values=(password,) if password else ())
 
     async def guest_env(self, vmx_path: str, user: str = "", password: str = "") -> str:
         cmd_args = []
@@ -177,7 +176,7 @@ class VMCli:
             cmd_args.extend(["-u", user])
         if password:
             cmd_args.extend(["-P", password])
-        return await self._run(vmx_path, "Guest", "env", *cmd_args)
+        return await self._run(vmx_path, "Guest", "env", *cmd_args, secret_values=(password,) if password else ())
 
     # === MKS (Mouse, Keyboard, Screen) ===
     async def mks_screenshot(self, vmx_path: str, output_path: str) -> str:
@@ -230,8 +229,6 @@ class VMCli:
         return await self._run(vmx_path, "Disk", "Extend", "-s", str(new_size_gb), "-a", str(adapter), "-d", str(device))
 
     # === VM ===
-    async def vm_create(self, name: str, dest_dir: str, guest_os: str) -> str:
-        return await self._run(None, "VM", "Create", "-n", name, "-d", dest_dir, "-g", guest_os)
 
     # === ConfigParams ===
     async def config_query(self, vmx_path: str) -> str:
@@ -297,8 +294,6 @@ class VMCli:
     async def hgfs_set_guest_name(self, vmx_path: str, index: int, name: str) -> str:
         return await self._run(vmx_path, "HGFS", "SetGuestName", "-i", str(index), "-n", name)
 
-    async def hgfs_set_present(self, vmx_path: str, index: int, present: bool) -> str:
-        return await self._run(vmx_path, "HGFS", "SetPresent", "-i", str(index), "-e", "true" if present else "false")
 
     async def hgfs_set_read_access(self, vmx_path: str, index: int, read: bool) -> str:
         return await self._run(vmx_path, "HGFS", "SetReadAccess", "-i", str(index), "-e", "true" if read else "false")

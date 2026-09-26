@@ -350,3 +350,107 @@ def test_env_int_invalid_falls_back(monkeypatch):
     from vmware_mcp.runtime import env_int
     monkeypatch.setenv("VMWARE_MAX_CONCURRENCY", "abc")
     assert env_int("VMWARE_MAX_CONCURRENCY", 8) == 8
+
+
+# ---------- 轮3：代码卫生 ----------
+
+def test_dead_methods_removed():
+    import vmware_mcp.client as c
+    import vmware_mcp.vmcli as v
+    for cls, name in [(c.VMwareClient, "update_nic"), (c.VMwareClient, "update_shared_folder"),
+                      (c.VMwareClient, "get_mac_to_ips"), (c.VMwareClient, "update_mac_to_ip"),
+                      (v.VMCli, "vm_create"), (v.VMCli, "hgfs_set_present")]:
+        assert not hasattr(cls, name), f"{cls.__name__}.{name} 应已删除"
+
+
+def test_redact_secrets():
+    from vmware_mcp.runtime import redact_secrets
+    assert redact_secrets("pwd=jnX4 and jnX4 again", ("jnX4",)) == "pwd=*** and *** again"
+    assert redact_secrets("no secret here", ()) == "no secret here"
+    assert redact_secrets("", ("x",)) == ""
+
+
+def _fake_proc(stdout: bytes, stderr: bytes, returncode: int):
+    class P:
+        async def communicate(self):
+            return stdout, stderr
+        def kill(self): pass
+        async def wait(self): return returncode
+    P.returncode = returncode
+    return P()
+
+
+def test_vmrun_error_redacts_guest_password(monkeypatch):
+    import vmware_mcp.vmrun as vr
+    secret = "Sup3rSecret!"
+
+    async def fake_exec(*cmd, **kw):
+        return _fake_proc(b"", ("vmrun failed: Incorrect password " + secret).encode(), 1)
+
+    monkeypatch.setattr(vr.asyncio, "create_subprocess_exec", fake_exec)
+    run = vr.VMRun()
+    import asyncio as aio
+    try:
+        aio.run(run.file_exists("D:/vms/a.vmx", "C:/x", user="admin", password=secret))
+        raised = False
+    except vr.ToolError as e:
+        raised = True
+        assert secret not in str(e) and "***" in str(e)
+        assert secret not in e.stderr and secret not in e.stdout
+    assert raised
+
+
+def test_vmrun_error_redacts_enc_password(monkeypatch):
+    import vmware_mcp.vmrun as vr
+    from vmware_mcp.runtime import enc_password
+    secret = "EncPass99"
+
+    async def fake_exec(*cmd, **kw):
+        cmd_str = " ".join(str(c) for c in cmd)
+        return _fake_proc(b"", ("bad: " + cmd_str).encode(), 1)
+
+    monkeypatch.setattr(vr.asyncio, "create_subprocess_exec", fake_exec)
+    run = vr.VMRun()
+    import asyncio as aio
+
+    async def main():
+        enc_password.set(secret)
+        try:
+            await run.start("D:/vms/a.vmx")
+            return False
+        except vr.ToolError as e:
+            assert secret not in str(e) and "-vp ***" in str(e)
+            return True
+
+    assert aio.run(main())
+
+
+def test_vmcli_error_redacts_guest_password(monkeypatch):
+    import vmware_mcp.vmcli as vc
+    secret = "GuestPW#1"
+
+    async def fake_exec(*cmd, **kw):
+        return _fake_proc(b"", ("error password " + secret).encode(), 1)
+
+    monkeypatch.setattr(vc.asyncio, "create_subprocess_exec", fake_exec)
+    cli = vc.VMCli()
+    import asyncio as aio
+    try:
+        aio.run(cli.guest_run("D:/vms/a.vmx", "prog.exe", user="u", password=secret))
+        raised = False
+    except vc.ToolError as e:
+        raised = True
+        assert secret not in str(e) and "***" in str(e)
+    assert raised
+
+
+def test_tls_verify_env(monkeypatch):
+    monkeypatch.setenv("VMWARE_TLS_VERIFY", "1")
+    monkeypatch.setattr("vmware_mcp.server._client", None)
+    c = server.get_client()
+    assert c.verify is True
+    monkeypatch.setenv("VMWARE_TLS_VERIFY", "")
+    monkeypatch.setattr("vmware_mcp.server._client", None)
+    c = server.get_client()
+    assert c.verify is False
+    monkeypatch.setattr("vmware_mcp.server._client", None)

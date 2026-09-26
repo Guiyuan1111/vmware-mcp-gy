@@ -43,3 +43,17 @@ def env_int(env_name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
+
+
+def redact_secrets(text: str, secrets: tuple[str, ...]) -> str:
+    """把文本中出现的密钥值替换为 ***。
+
+    -gp/-vp 密码经 argv 明文传递是 vmrun/vmcli 的机制限制（无法根治）；
+    本函数保证密钥至少不出现在 MCP 错误输出与日志中。
+    """
+    if not text:
+        return text
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "***")
+    return text

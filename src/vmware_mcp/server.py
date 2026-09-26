@@ -73,6 +73,7 @@ def get_client() -> VMwareClient:
             port=int(os.getenv("VMWARE_PORT", "8697")),
             username=os.getenv("VMWARE_USERNAME", ""),
             password=os.getenv("VMWARE_PASSWORD", ""),
+            verify=os.getenv("VMWARE_TLS_VERIFY", "").strip().lower() in ("1", "true", "yes", "on"),
         )
     return _client
 

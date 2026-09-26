@@ -5,7 +5,7 @@ import os
 import time
 
 from .errors import ToolError
-from .runtime import decode_output, encryption_password, env_int, env_timeout
+from .runtime import decode_output, encryption_password, env_int, env_timeout, redact_secrets
 
 # 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
 _POWER_COMMANDS = {"start", "stop", "reset", "suspend", "pause", "unpause"}
@@ -68,13 +68,14 @@ class VMRun:
                          "否则检查 VM 是否卡在等加密密码（enc_pass）或等 VMware Tools",
                 )
         duration_ms = int((time.monotonic() - started) * 1000)
-        out = decode_output(stdout)
-        err = decode_output(stderr)
+        secrets = tuple(s for s in (encryption_password(), guest_pass) if s)
+        out = redact_secrets(decode_output(stdout), secrets)
+        err = redact_secrets(decode_output(stderr), secrets)
 
         if proc.returncode != 0:
             error_msg = err.strip() or out.strip()
             raise ToolError(
-                f"vmrun failed: {error_msg}",
+                f"vmrun failed: {redact_secrets(error_msg, secrets)}",
                 exit_code=proc.returncode,
                 stdout=out.strip(),
                 stderr=err.strip(),

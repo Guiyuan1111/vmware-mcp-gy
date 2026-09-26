@@ -61,8 +61,6 @@ class VMwareClient:
     async def create_nic(self, vm_id: str, nic_config: dict) -> dict:
         return await self._request("POST", f"/vms/{vm_id}/nic", json=nic_config)
 
-    async def update_nic(self, vm_id: str, index: int, nic_config: dict) -> dict:
-        return await self._request("PUT", f"/vms/{vm_id}/nic/{index}", json=nic_config)
 
     async def delete_nic(self, vm_id: str, index: int) -> None:
         await self._request("DELETE", f"/vms/{vm_id}/nic/{index}")
@@ -77,8 +75,6 @@ class VMwareClient:
     async def create_shared_folder(self, vm_id: str, folder_config: dict) -> dict:
         return await self._request("POST", f"/vms/{vm_id}/sharedfolders", json=folder_config)
 
-    async def update_shared_folder(self, vm_id: str, folder_id: str, folder_config: dict) -> dict:
-        return await self._request("PUT", f"/vms/{vm_id}/sharedfolders/{folder_id}", json=folder_config)
 
     async def delete_shared_folder(self, vm_id: str, folder_id: str) -> None:
         await self._request("DELETE", f"/vms/{vm_id}/sharedfolders/{folder_id}")
@@ -90,11 +86,7 @@ class VMwareClient:
     async def create_network(self, network_config: dict) -> dict:
         return await self._request("POST", "/vmnets", json=network_config)
 
-    async def get_mac_to_ips(self, vmnet: str) -> list[dict]:
-        return await self._request("GET", f"/vmnet/{vmnet}/mactoip")
 
-    async def update_mac_to_ip(self, vmnet: str, mac: str, ip: str) -> dict:
-        return await self._request("PUT", f"/vmnet/{vmnet}/mactoip/{mac}", json={"ip": ip})
 
     async def get_portforwards(self, vmnet: str) -> list[dict]:
         return await self._request("GET", f"/vmnet/{vmnet}/portforward")
