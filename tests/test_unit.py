@@ -285,3 +285,68 @@ def test_confirm_prop_injected_on_destructive_only():
     assert "confirm" in tools["vmrun_rm"].inputSchema["properties"]
     assert "confirm" in tools["vm_power_set"].inputSchema["properties"]
     assert "confirm" not in tools["vm_list"].inputSchema["properties"]
+
+
+# ---------- 轮2：性能 ----------
+
+def test_shared_http_client_reused():
+    import vmware_mcp.client as c
+    c._shared_client = None
+    a = c.get_shared_client(auth=("u", "p"))
+    b = c.get_shared_client(auth=("other", "x"))
+    assert a is b, "共享客户端应只创建一次"
+    c._shared_client = None
+
+
+def test_vmware_client_uses_shared_pool():
+    import vmware_mcp.client as c
+    c._shared_client = None
+    seen = {}
+
+    class FakeShared:
+        async def request(self, method, url, **kw):
+            seen["client"] = fake_client_obj
+            class R:
+                content = b"[]"
+                def raise_for_status(self): pass
+                def json(self): return []
+            return R()
+
+    fake_client_obj = FakeShared()
+    original = c.httpx.AsyncClient
+    c.httpx.AsyncClient = lambda **kw: fake_client_obj
+    try:
+        client = c.VMwareClient()
+        import asyncio as aio
+        aio.run(client.list_vms())
+        first = seen["client"]
+        aio.run(client.list_vms())
+        assert seen["client"] is first, "两次请求应复用同一连接池"
+    finally:
+        c.httpx.AsyncClient = original
+        c._shared_client = None
+
+
+def test_output_truncation(monkeypatch):
+    monkeypatch.setenv("VMWARE_MAX_OUTPUT", "100")
+    long_text = "x" * 500
+    out = server._truncate_output(long_text)
+    assert len(out) < 200 and "已截断" in out
+    assert server._truncate_output("short") == "short"
+
+
+def test_output_truncation_disabled(monkeypatch):
+    monkeypatch.setenv("VMWARE_MAX_OUTPUT", "0")
+    assert server._truncate_output("y" * 500) == "y" * 500
+
+
+def test_subprocess_semaphore_config():
+    from vmware_mcp.vmrun import _SUBPROCESS_SLOTS as s1
+    from vmware_mcp.vmcli import _SUBPROCESS_SLOTS as s2
+    assert s1._value == 8 and s2._value == 8
+
+
+def test_env_int_invalid_falls_back(monkeypatch):
+    from vmware_mcp.runtime import env_int
+    monkeypatch.setenv("VMWARE_MAX_CONCURRENCY", "abc")
+    assert env_int("VMWARE_MAX_CONCURRENCY", 8) == 8

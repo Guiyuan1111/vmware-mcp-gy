@@ -12,7 +12,7 @@ from mcp.types import Tool, TextContent, ToolAnnotations
 
 from .client import VMwareClient
 from .errors import ToolError, make_hint
-from .runtime import enc_password
+from .runtime import enc_password, env_int
 from .vmcli import VMCli
 from .vmrun import VMRun
 
@@ -171,6 +171,14 @@ def T(name: str, desc: str, props: dict, required: list | None = None, annotatio
 
 def _error_content(payload: dict) -> list[TextContent]:
     return [TextContent(type="text", text=json.dumps(payload, indent=2, ensure_ascii=False))]
+
+
+def _truncate_output(text: str) -> str:
+    """超长输出截断，防止大规模 list/ps 结果撑爆模型上下文；VMWARE_MAX_OUTPUT 可调（0/负数禁用截断）。"""
+    limit = env_int("VMWARE_MAX_OUTPUT", 20000)
+    if limit <= 0 or len(text) <= limit:
+        return text
+    return text[:limit] + f"\n...（已截断：原长 {len(text)} 字符，仅显示前 {limit}；可用 VMWARE_MAX_OUTPUT 调整或缩小查询范围）"
 
 
 def _structured(fn):
@@ -776,8 +784,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if result is _UNHANDLED:
         raise ToolError(f"Unknown tool: {name}", tool=name, hint="工具名不存在；以 list_tools 返回为准")
     if isinstance(result, str):
-        return [TextContent(type="text", text=result if result else "OK")]
-    return [TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False) if result else "OK")]
+        return [TextContent(type="text", text=_truncate_output(result) if result else "OK")]
+    return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
 
 
 def main():

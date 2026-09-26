@@ -33,3 +33,13 @@ def env_timeout(env_name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         return default
+
+
+def env_int(env_name: str, default: int) -> int:
+    raw = os.getenv(env_name)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default

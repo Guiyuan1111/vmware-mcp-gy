@@ -5,11 +5,14 @@ import os
 import time
 
 from .errors import ToolError
-from .runtime import decode_output, encryption_password, env_timeout
+from .runtime import decode_output, encryption_password, env_int, env_timeout
 
 # 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
 _POWER_COMMANDS = {"start", "stop", "reset", "suspend", "pause", "unpause"}
 _LONG_COMMANDS = {"clone", "upgradevm", "deleteVM", "installTools"}
+
+# 子进程并发上限：多客户端/子代理并发调用时防止 vmrun 进程风暴拖垮宿主
+_SUBPROCESS_SLOTS = asyncio.Semaphore(env_int("VMWARE_MAX_CONCURRENCY", 8))
 
 
 def _timeout_for(command: str) -> float:
@@ -45,24 +48,25 @@ class VMRun:
         started = time.monotonic()
         # stdin 接 DEVNULL：vmrun 等密码/等输入时立即报错退出，
         # 而不是继承 MCP 服务端的 stdio 管道挂死（历史上 p90=30s 超时墙的根因）
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise ToolError(
-                f"vmrun {command} timed out after {limit:g}s, process killed",
-                timeout=True,
-                duration_ms=int((time.monotonic() - started) * 1000),
-                hint="clone/upgrade 等长任务可用 VMWARE_TIMEOUT_LONG 提高上限；"
-                     "否则检查 VM 是否卡在等加密密码（enc_pass）或等 VMware Tools",
+        async with _SUBPROCESS_SLOTS:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise ToolError(
+                    f"vmrun {command} timed out after {limit:g}s, process killed",
+                    timeout=True,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                    hint="clone/upgrade 等长任务可用 VMWARE_TIMEOUT_LONG 提高上限；"
+                         "否则检查 VM 是否卡在等加密密码（enc_pass）或等 VMware Tools",
+                )
         duration_ms = int((time.monotonic() - started) * 1000)
         out = decode_output(stdout)
         err = decode_output(stderr)

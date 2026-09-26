@@ -6,12 +6,15 @@ import json
 import time
 
 from .errors import ToolError
-from .runtime import decode_output, env_timeout
+from .runtime import decode_output, env_int, env_timeout
 
 # 超时分档（秒）：查询默认 30s，电源操作 90s，长任务 600s；可用 env 覆盖
 _POWER_MODULES = {"Power"}
 _LONG_MODULES = {"VMTemplate"}
 _LONG_COMMANDS = {"Clone", "Create", "Extend", "Upgrade", "Install"}
+
+# 子进程并发上限：与 vmrun 侧共用同一 env（各自独立信号量）
+_SUBPROCESS_SLOTS = asyncio.Semaphore(env_int("VMWARE_MAX_CONCURRENCY", 8))
 
 
 def _timeout_for(module: str, command: str) -> float:
@@ -41,23 +44,24 @@ class VMCli:
         limit = timeout or _timeout_for(module, command)
         started = time.monotonic()
         # stdin 接 DEVNULL：vmcli 等输入时立即报错退出，而不是继承 MCP 服务端的 stdio 管道挂死
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise ToolError(
-                f"vmcli {module} {command} timed out after {limit:g}s, process killed",
-                timeout=True,
-                duration_ms=int((time.monotonic() - started) * 1000),
-                hint="长任务可用 VMWARE_TIMEOUT_LONG 提高上限",
+        async with _SUBPROCESS_SLOTS:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=limit)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise ToolError(
+                    f"vmcli {module} {command} timed out after {limit:g}s, process killed",
+                    timeout=True,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                    hint="长任务可用 VMWARE_TIMEOUT_LONG 提高上限",
+                )
         duration_ms = int((time.monotonic() - started) * 1000)
         out = decode_output(stdout)
         err = decode_output(stderr)

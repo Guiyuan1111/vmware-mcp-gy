@@ -3,21 +3,33 @@
 import httpx
 from typing import Any
 
+# 进程级共享连接池：避免每次请求重建 TCP 连接与 httpx 实例。
+# 客户端按进程生命周期存活、不主动关闭；首次调用时以传入 auth/verify 创建，此后参数仅首建生效。
+_shared_client: httpx.AsyncClient | None = None
+
+
+def get_shared_client(auth: tuple[str, str] | None = None, verify: bool = False) -> httpx.AsyncClient:
+    global _shared_client
+    if _shared_client is None:
+        _shared_client = httpx.AsyncClient(auth=auth, verify=verify)
+    return _shared_client
+
 
 class VMwareClient:
     """HTTP client for VMware Workstation Pro REST API."""
 
-    def __init__(self, host: str = "localhost", port: int = 8697, username: str = "", password: str = ""):
+    def __init__(self, host: str = "localhost", port: int = 8697, username: str = "", password: str = "", verify: bool = False):
         self.base_url = f"http://{host}:{port}/api"
         self.auth = (username, password) if username else None
+        self.verify = verify
 
     async def _request(self, method: str, path: str, **kwargs) -> Any:
-        async with httpx.AsyncClient(auth=self.auth, verify=False) as client:
-            resp = await client.request(method, f"{self.base_url}{path}", **kwargs)
-            resp.raise_for_status()
-            if resp.content:
-                return resp.json()
-            return None
+        client = get_shared_client(auth=self.auth, verify=self.verify)
+        resp = await client.request(method, f"{self.base_url}{path}", **kwargs)
+        resp.raise_for_status()
+        if resp.content:
+            return resp.json()
+        return None
 
     # VM Management
     async def list_vms(self) -> list[dict]:
