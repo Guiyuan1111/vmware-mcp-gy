@@ -1,0 +1,3213 @@
+{
+ "__NO_SUCH_TOOL__": {
+  "args": {},
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"ok\": false,\n  \"tool\": \"__NO_SUCH_TOOL__\",\n  \"error\": \"Unknown tool: __NO_SUCH_TOOL__\",\n  \"exit_code\": null,\n  \"stdout\": \"\",\n  \"stderr\": \"\",\n  \"duration_ms\": null,\n  \"timeout\": false,\n  \"read_only\": false,\n  \"hint\": \"工具名不存在；以 list_tools 返回为准\"\n}"
+  ]
+ },
+ "chipset_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "chipset_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"chipset_query\"\n}"
+  ]
+ },
+ "chipset_set_cores": {
+  "args": {
+   "cores": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "chipset_set_cores_per_socket",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"chipset_set_cores_per_socket\"\n}"
+  ]
+ },
+ "chipset_set_cpu": {
+  "args": {
+   "count": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "chipset_set_cpu",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"chipset_set_cpu\"\n}"
+  ]
+ },
+ "chipset_set_memory": {
+  "args": {
+   "size_mb": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "chipset_set_memory",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"chipset_set_memory\"\n}"
+  ]
+ },
+ "config_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "config_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"config_query\"\n}"
+  ]
+ },
+ "config_set": {
+  "args": {
+   "key": "bench-str",
+   "value": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "config_set",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"config_set\"\n}"
+  ]
+ },
+ "disk_create": {
+  "args": {
+   "adapter": 1,
+   "device": 1,
+   "disk_type": "bench-str",
+   "size_gb": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "disk_create",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str",
+      1,
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"disk_create\"\n}"
+  ]
+ },
+ "disk_extend": {
+  "args": {
+   "adapter": 1,
+   "confirm": true,
+   "device": 1,
+   "new_size_gb": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "disk_extend",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      1,
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"disk_extend\"\n}"
+  ]
+ },
+ "disk_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "disk_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"disk_query\"\n}"
+  ]
+ },
+ "ethernet_purge": {
+  "args": {
+   "confirm": true,
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_purge",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_purge\"\n}"
+  ]
+ },
+ "ethernet_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_query\"\n}"
+  ]
+ },
+ "ethernet_set_connected": {
+  "args": {
+   "connected": false,
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_set_start_connected",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_set_start_connected\"\n}"
+  ]
+ },
+ "ethernet_set_device": {
+  "args": {
+   "device": "bench-str",
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_set_virtual_device",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_set_virtual_device\"\n}"
+  ]
+ },
+ "ethernet_set_network": {
+  "args": {
+   "index": 1,
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_set_network_name",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_set_network_name\"\n}"
+  ]
+ },
+ "ethernet_set_present": {
+  "args": {
+   "index": 1,
+   "present": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_set_present",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_set_present\"\n}"
+  ]
+ },
+ "ethernet_set_type": {
+  "args": {
+   "index": 1,
+   "type": "bridged",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "ethernet_set_connection_type",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bridged"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"ethernet_set_connection_type\"\n}"
+  ]
+ },
+ "guest_copy_from": {
+  "args": {
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_copy_from",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_copy_from\"\n}"
+  ]
+ },
+ "guest_copy_to": {
+  "args": {
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_copy_to",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_copy_to\"\n}"
+  ]
+ },
+ "guest_env": {
+  "args": {
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_env",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_env\"\n}"
+  ]
+ },
+ "guest_kill": {
+  "args": {
+   "confirm": true,
+   "password": "bench-str",
+   "pid": 1,
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_kill",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_kill\"\n}"
+  ]
+ },
+ "guest_ls": {
+  "args": {
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_ls",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_ls\"\n}"
+  ]
+ },
+ "guest_mkdir": {
+  "args": {
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_mkdir",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_mkdir\"\n}"
+  ]
+ },
+ "guest_ps": {
+  "args": {
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_ps",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_ps\"\n}"
+  ]
+ },
+ "guest_rm": {
+  "args": {
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_rm",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_rm\"\n}"
+  ]
+ },
+ "guest_rmdir": {
+  "args": {
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_rmdir",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_rmdir\"\n}"
+  ]
+ },
+ "guest_run": {
+  "args": {
+   "args": "bench-str",
+   "password": "bench-str",
+   "program": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "guest_run",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"guest_run\"\n}"
+  ]
+ },
+ "hgfs_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_query\"\n}"
+  ]
+ },
+ "hgfs_set_enabled": {
+  "args": {
+   "enabled": false,
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_set_enabled",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_set_enabled\"\n}"
+  ]
+ },
+ "hgfs_set_name": {
+  "args": {
+   "index": 1,
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_set_guest_name",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_set_guest_name\"\n}"
+  ]
+ },
+ "hgfs_set_path": {
+  "args": {
+   "index": 1,
+   "path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_set_host_path",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_set_host_path\"\n}"
+  ]
+ },
+ "hgfs_set_read": {
+  "args": {
+   "index": 1,
+   "read": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_set_read_access",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_set_read_access\"\n}"
+  ]
+ },
+ "hgfs_set_write": {
+  "args": {
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx",
+   "write": false
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "hgfs_set_write_access",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"hgfs_set_write_access\"\n}"
+  ]
+ },
+ "mks_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "mks_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"mks_query\"\n}"
+  ]
+ },
+ "mks_screenshot": {
+  "args": {
+   "output_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "mks_screenshot",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"mks_screenshot\"\n}"
+  ]
+ },
+ "mks_send_key": {
+  "args": {
+   "key_sequence": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "mks_send_key",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"mks_send_key\"\n}"
+  ]
+ },
+ "network_create": {
+  "args": {
+   "name": "bench-str",
+   "type": "bridged"
+  },
+  "calls": {
+   "c": [
+    [
+     "create_network",
+     [
+      {
+       "name": "bench-str",
+       "type": "bridged"
+      }
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"create_network\"\n}"
+  ]
+ },
+ "network_list": {
+  "args": {},
+  "calls": {
+   "c": [
+    [
+     "list_networks",
+     []
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"list_networks\"\n}"
+  ]
+ },
+ "network_portforward_delete": {
+  "args": {
+   "confirm": true,
+   "port": 1,
+   "protocol": "bench-str",
+   "vmnet": "bench-str"
+  },
+  "calls": {
+   "c": [
+    [
+     "delete_portforward",
+     [
+      "bench-str",
+      "bench-str",
+      1
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"status\": \"deleted\"\n}"
+  ]
+ },
+ "network_portforward_list": {
+  "args": {
+   "vmnet": "bench-str"
+  },
+  "calls": {
+   "c": [
+    [
+     "get_portforwards",
+     [
+      "bench-str"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"get_portforwards\"\n}"
+  ]
+ },
+ "network_portforward_set": {
+  "args": {
+   "guest_ip": "bench-str",
+   "guest_port": 1,
+   "port": 1,
+   "protocol": "tcp",
+   "vmnet": "bench-str"
+  },
+  "calls": {
+   "c": [
+    [
+     "update_portforward",
+     [
+      "bench-str",
+      "tcp",
+      1,
+      {
+       "guestIp": "bench-str",
+       "guestPort": 1
+      }
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"update_portforward\"\n}"
+  ]
+ },
+ "nvme_purge": {
+  "args": {
+   "adapter": 1,
+   "confirm": true,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "nvme_purge",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"nvme_purge\"\n}"
+  ]
+ },
+ "nvme_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "nvme_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"nvme_query\"\n}"
+  ]
+ },
+ "nvme_set_present": {
+  "args": {
+   "adapter": 1,
+   "present": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "nvme_set_present",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"nvme_set_present\"\n}"
+  ]
+ },
+ "power_pause": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_pause",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_pause\"\n}"
+  ]
+ },
+ "power_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_query\"\n}"
+  ]
+ },
+ "power_reset": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_reset",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_reset\"\n}"
+  ]
+ },
+ "power_start": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_start",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_start\"\n}"
+  ]
+ },
+ "power_stop": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_stop",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_stop\"\n}"
+  ]
+ },
+ "power_suspend": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_suspend",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_suspend\"\n}"
+  ]
+ },
+ "power_unpause": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "power_unpause",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"power_unpause\"\n}"
+  ]
+ },
+ "sata_purge": {
+  "args": {
+   "adapter": 1,
+   "confirm": true,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "sata_purge",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"sata_purge\"\n}"
+  ]
+ },
+ "sata_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "sata_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"sata_query\"\n}"
+  ]
+ },
+ "sata_set_present": {
+  "args": {
+   "adapter": 1,
+   "present": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "sata_set_present",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"sata_set_present\"\n}"
+  ]
+ },
+ "screenshot_ocr": {
+  "args": {
+   "output_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "capture_screen",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"ok\": false,\n  \"image\": \"bench-str\",\n  \"error\": \"LoadImageError: bench-str does not exist.\",\n  \"hint\": \"图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）\"\n}"
+  ]
+ },
+ "serial_purge": {
+  "args": {
+   "confirm": true,
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "serial_purge",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"serial_purge\"\n}"
+  ]
+ },
+ "serial_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "serial_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"serial_query\"\n}"
+  ]
+ },
+ "serial_set_present": {
+  "args": {
+   "index": 1,
+   "present": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "serial_set_present",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"serial_set_present\"\n}"
+  ]
+ },
+ "set_vm_encryption_password": {
+  "args": {
+   "password": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"status\": \"stored\",\n  \"vm_id\": \"D:/vms/bench.vmx\",\n  \"note\": \"密码仅存于服务进程内存，进程重启后失效；持久方案用 env VMWARE_ENC_PASSWORD\"\n}"
+  ]
+ },
+ "snapshot_clone": {
+  "args": {
+   "clone_type": "linked",
+   "dest_path": "bench-str",
+   "snapshot_name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "snapshot_clone",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "linked"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot_clone\"\n}"
+  ]
+ },
+ "snapshot_delete": {
+  "args": {
+   "confirm": true,
+   "delete_children": false,
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "snapshot_delete",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot_delete\"\n}"
+  ]
+ },
+ "snapshot_list": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "snapshot_list",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot_list\"\n}"
+  ]
+ },
+ "snapshot_revert": {
+  "args": {
+   "confirm": true,
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "snapshot_revert",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot_revert\"\n}"
+  ]
+ },
+ "snapshot_take": {
+  "args": {
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "snapshot_take",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot_take\"\n}"
+  ]
+ },
+ "template_create": {
+  "args": {
+   "name": "bench-str",
+   "template_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "template_create",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"template_create\"\n}"
+  ]
+ },
+ "template_deploy": {
+  "args": {
+   "dest_path": "bench-str",
+   "name": "bench-str",
+   "template_path": "bench-str"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "template_deploy",
+     [
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"template_deploy\"\n}"
+  ]
+ },
+ "tools_install": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "tools_install",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"tools_install\"\n}"
+  ]
+ },
+ "tools_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "tools_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"tools_query\"\n}"
+  ]
+ },
+ "tools_upgrade": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "tools_upgrade",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"tools_upgrade\"\n}"
+  ]
+ },
+ "vm_create": {
+  "args": {
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "create_vm",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"create_vm\"\n}"
+  ]
+ },
+ "vm_delete": {
+  "args": {
+   "confirm": true,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "delete_vm",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"status\": \"deleted\"\n}"
+  ]
+ },
+ "vm_folder_create": {
+  "args": {
+   "flags": 1,
+   "folder_id": "bench-str",
+   "host_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "create_shared_folder",
+     [
+      "D:/vms/bench.vmx",
+      {
+       "flags": 1,
+       "folder_id": "bench-str",
+       "host_path": "bench-str"
+      }
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"create_shared_folder\"\n}"
+  ]
+ },
+ "vm_folder_delete": {
+  "args": {
+   "confirm": true,
+   "folder_id": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "delete_shared_folder",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"status\": \"deleted\"\n}"
+  ]
+ },
+ "vm_folder_list": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "list_shared_folders",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"list_shared_folders\"\n}"
+  ]
+ },
+ "vm_get": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "get_vm",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"get_vm\"\n}"
+  ]
+ },
+ "vm_health": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_running",
+     []
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"ok\": false,\n  \"tool\": \"vm_health\",\n  \"error\": \"AttributeError: 'dict' object has no attribute 'lower'\",\n  \"hint\": \"\"\n}"
+  ]
+ },
+ "vm_ip_get": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "get_vm_ip",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"get_vm_ip\"\n}"
+  ]
+ },
+ "vm_list": {
+  "args": {},
+  "calls": {
+   "c": [
+    [
+     "list_vms",
+     []
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "OK"
+  ]
+ },
+ "vm_log_tail": {
+  "args": {
+   "lines": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"log\": \"(无法读取 D:/vms\\\\vmware.log: [Errno 2] No such file or directory: 'D:/vms\\\\\\\\vmware.log')\"\n}"
+  ]
+ },
+ "vm_nic_create": {
+  "args": {
+   "type": "bridged",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "create_nic",
+     [
+      "D:/vms/bench.vmx",
+      {
+       "type": "bridged"
+      }
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"create_nic\"\n}"
+  ]
+ },
+ "vm_nic_delete": {
+  "args": {
+   "confirm": true,
+   "index": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "delete_nic",
+     [
+      "D:/vms/bench.vmx",
+      1
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"status\": \"deleted\"\n}"
+  ]
+ },
+ "vm_nic_list": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "list_nics",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"list_nics\"\n}"
+  ]
+ },
+ "vm_power_get": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "get_power_state",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"get_power_state\"\n}"
+  ]
+ },
+ "vm_power_set": {
+  "args": {
+   "confirm": true,
+   "state": "on",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "change_power_state",
+     [
+      "D:/vms/bench.vmx",
+      "on"
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"change_power_state\"\n}"
+  ]
+ },
+ "vm_resolve": {
+  "args": {
+   "query": "bench-str"
+  },
+  "calls": {
+   "c": [
+    [
+     "list_vms",
+     []
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"query\": \"bench-str\",\n  \"count\": 0,\n  \"matches\": []\n}"
+  ]
+ },
+ "vm_update": {
+  "args": {
+   "cpu": 1,
+   "memory": 1,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [
+    [
+     "update_vm",
+     [
+      "D:/vms/bench.vmx",
+      {
+       "cpu": 1,
+       "memory": 1
+      }
+     ]
+    ]
+   ],
+   "l": [],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"update_vm\"\n}"
+  ]
+ },
+ "vmrun_clone": {
+  "args": {
+   "clone_name": "bench-str",
+   "clone_type": "full",
+   "dest_path": "bench-str",
+   "enc_pass": "bench-str",
+   "snapshot": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "clone",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "full",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"clone\"\n}"
+  ]
+ },
+ "vmrun_copy_dir_from": {
+  "args": {
+   "enc_pass": "bench-str",
+   "exclude": "bench-str",
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "include": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_dir_from",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"copy_dir_from\"\n}"
+  ]
+ },
+ "vmrun_copy_dir_to": {
+  "args": {
+   "enc_pass": "bench-str",
+   "exclude": "bench-str",
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "include": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_dir_to",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"copy_dir_to\"\n}"
+  ]
+ },
+ "vmrun_copy_from": {
+  "args": {
+   "enc_pass": "bench-str",
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_from_guest",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"copy_from_guest\"\n}"
+  ]
+ },
+ "vmrun_copy_to": {
+  "args": {
+   "enc_pass": "bench-str",
+   "guest_path": "bench-str",
+   "host_path": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_to_guest",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"copy_to_guest\"\n}"
+  ]
+ },
+ "vmrun_delete": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "delete_vm",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"delete_vm\"\n}"
+  ]
+ },
+ "vmrun_device_connect": {
+  "args": {
+   "device": "bench-str",
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "connect_device",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"connect_device\"\n}"
+  ]
+ },
+ "vmrun_device_disconnect": {
+  "args": {
+   "device": "bench-str",
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "disconnect_device",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"disconnect_device\"\n}"
+  ]
+ },
+ "vmrun_dir_exists": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "directory_exists",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"directory_exists\"\n}"
+  ]
+ },
+ "vmrun_file_exists": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "file_exists",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"file_exists\"\n}"
+  ]
+ },
+ "vmrun_guest_ip": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx",
+   "wait": false
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "get_guest_ip",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"get_guest_ip\"\n}"
+  ]
+ },
+ "vmrun_host_networks": {
+  "args": {},
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_host_networks",
+     []
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_host_networks\"\n}"
+  ]
+ },
+ "vmrun_keystrokes": {
+  "args": {
+   "enc_pass": "bench-str",
+   "keystrokes": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "type_keystrokes",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"type_keystrokes\"\n}"
+  ]
+ },
+ "vmrun_kill": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "pid": 1,
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "kill_process",
+     [
+      "D:/vms/bench.vmx",
+      1,
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"kill_process\"\n}"
+  ]
+ },
+ "vmrun_list": {
+  "args": {},
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_running",
+     []
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_running\"\n}"
+  ]
+ },
+ "vmrun_ls": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_directory",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_directory\"\n}"
+  ]
+ },
+ "vmrun_mkdir": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "create_directory",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"create_directory\"\n}"
+  ]
+ },
+ "vmrun_pause": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "pause",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"pause\"\n}"
+  ]
+ },
+ "vmrun_portforward_delete": {
+  "args": {
+   "confirm": true,
+   "host_port": 1,
+   "network": "bench-str",
+   "protocol": "bench-str"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "delete_port_forwarding",
+     [
+      "bench-str",
+      "bench-str",
+      1
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"delete_port_forwarding\"\n}"
+  ]
+ },
+ "vmrun_portforward_list": {
+  "args": {
+   "network": "bench-str"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_port_forwardings",
+     [
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_port_forwardings\"\n}"
+  ]
+ },
+ "vmrun_portforward_set": {
+  "args": {
+   "description": "bench-str",
+   "guest_ip": "bench-str",
+   "guest_port": 1,
+   "host_port": 1,
+   "network": "bench-str",
+   "protocol": "bench-str"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "set_port_forwarding",
+     [
+      "bench-str",
+      "bench-str",
+      1,
+      "bench-str",
+      1,
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"set_port_forwarding\"\n}"
+  ]
+ },
+ "vmrun_ps": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_processes",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_processes\"\n}"
+  ]
+ },
+ "vmrun_rename": {
+  "args": {
+   "enc_pass": "bench-str",
+   "new_path": "bench-str",
+   "old_path": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "rename_file",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"rename_file\"\n}"
+  ]
+ },
+ "vmrun_reset": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "hard": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "reset",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"reset\"\n}"
+  ]
+ },
+ "vmrun_rm": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "delete_file",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"delete_file\"\n}"
+  ]
+ },
+ "vmrun_rmdir": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "delete_directory",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"delete_directory\"\n}"
+  ]
+ },
+ "vmrun_run": {
+  "args": {
+   "args": "bench-str",
+   "enc_pass": "bench-str",
+   "interactive": false,
+   "no_wait": false,
+   "password": "bench-str",
+   "program": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "run_program",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      false,
+      false,
+      false,
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"run_program\"\n}"
+  ]
+ },
+ "vmrun_screenshot": {
+  "args": {
+   "enc_pass": "bench-str",
+   "output_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "capture_screen",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"capture_screen\"\n}"
+  ]
+ },
+ "vmrun_script": {
+  "args": {
+   "enc_pass": "bench-str",
+   "interpreter": "bench-str",
+   "no_wait": false,
+   "password": "bench-str",
+   "script": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "run_script",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      false,
+      false,
+      false,
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"run_script\"\n}"
+  ]
+ },
+ "vmrun_shared_add": {
+  "args": {
+   "enc_pass": "bench-str",
+   "host_path": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "add_shared_folder",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"add_shared_folder\"\n}"
+  ]
+ },
+ "vmrun_shared_disable": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "disable_shared_folders",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"disable_shared_folders\"\n}"
+  ]
+ },
+ "vmrun_shared_enable": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "enable_shared_folders",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"enable_shared_folders\"\n}"
+  ]
+ },
+ "vmrun_shared_remove": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "remove_shared_folder",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"remove_shared_folder\"\n}"
+  ]
+ },
+ "vmrun_shared_set": {
+  "args": {
+   "enc_pass": "bench-str",
+   "host_path": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx",
+   "writable": false
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "set_shared_folder_state",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"set_shared_folder_state\"\n}"
+  ]
+ },
+ "vmrun_snapshot_delete": {
+  "args": {
+   "confirm": true,
+   "delete_children": false,
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "delete_snapshot",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"delete_snapshot\"\n}"
+  ]
+ },
+ "vmrun_snapshot_list": {
+  "args": {
+   "enc_pass": "bench-str",
+   "show_tree": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "list_snapshots",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"list_snapshots\"\n}"
+  ]
+ },
+ "vmrun_snapshot_revert": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "revert_to_snapshot",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"revert_to_snapshot\"\n}"
+  ]
+ },
+ "vmrun_snapshot_take": {
+  "args": {
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "snapshot",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"snapshot\"\n}"
+  ]
+ },
+ "vmrun_start": {
+  "args": {
+   "enc_pass": "bench-str",
+   "gui": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "start",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"start\"\n}"
+  ]
+ },
+ "vmrun_stop": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "hard": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "stop",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"stop\"\n}"
+  ]
+ },
+ "vmrun_suspend": {
+  "args": {
+   "confirm": true,
+   "enc_pass": "bench-str",
+   "hard": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "suspend",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"suspend\"\n}"
+  ]
+ },
+ "vmrun_temp_file": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "create_temp_file",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"create_temp_file\"\n}"
+  ]
+ },
+ "vmrun_tools_install": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "install_tools",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"install_tools\"\n}"
+  ]
+ },
+ "vmrun_tools_state": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "check_tools_state",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"check_tools_state\"\n}"
+  ]
+ },
+ "vmrun_unpause": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "unpause",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"unpause\"\n}"
+  ]
+ },
+ "vmrun_upgrade": {
+  "args": {
+   "enc_pass": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "upgrade_vm",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"upgrade_vm\"\n}"
+  ]
+ },
+ "vmrun_var_read": {
+  "args": {
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "var_type": "runtimeConfig",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "read_variable",
+     [
+      "D:/vms/bench.vmx",
+      "runtimeConfig",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"read_variable\"\n}"
+  ]
+ },
+ "vmrun_var_write": {
+  "args": {
+   "enc_pass": "bench-str",
+   "name": "bench-str",
+   "password": "bench-str",
+   "user": "bench-str",
+   "value": "bench-str",
+   "var_type": "runtimeConfig",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "write_variable",
+     [
+      "D:/vms/bench.vmx",
+      "runtimeConfig",
+      "bench-str",
+      "bench-str",
+      "bench-str",
+      "bench-str"
+     ]
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"fake\": \"write_variable\"\n}"
+  ]
+ },
+ "vprobes_enable": {
+  "args": {
+   "enabled": false,
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "vprobes_set_enabled",
+     [
+      "D:/vms/bench.vmx",
+      false
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"vprobes_set_enabled\"\n}"
+  ]
+ },
+ "vprobes_load": {
+  "args": {
+   "script_path": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "vprobes_load",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"vprobes_load\"\n}"
+  ]
+ },
+ "vprobes_query": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "vprobes_query",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"vprobes_query\"\n}"
+  ]
+ },
+ "vprobes_reset": {
+  "args": {
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [
+    [
+     "vprobes_reset",
+     [
+      "D:/vms/bench.vmx"
+     ]
+    ]
+   ],
+   "r": []
+  },
+  "result": [
+   "{\n  \"fake\": \"vprobes_reset\"\n}"
+  ]
+ }
+}

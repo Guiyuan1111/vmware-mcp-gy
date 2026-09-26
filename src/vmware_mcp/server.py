@@ -446,6 +446,299 @@ async def list_tools() -> list[Tool]:
     return _TOOLS_CACHE
 
 
+# ==================== 分发路由表（v0.3.1：if/elif 链 → O(1) 查表） ====================
+# 行为契约：与原 if/elif 链逐分支等价，由 benchmark/verify_dispatch_equivalence.py 黄金快照保证。
+# uniform 路由：(适配器, 方法名, 参数提取器序列, 固定返回值或 None)；提取器按原分支实参顺序求值。
+
+def _e_vmx(key):
+    async def e(a, vmx):
+        return await vmx(a[key])
+    return e
+
+
+def _e_req(key):
+    async def e(a, vmx):
+        return a[key]
+    return e
+
+
+def _e_opt(key, default):
+    async def e(a, vmx):
+        return a.get(key, default)
+    return e
+
+
+def _e_cst(value):
+    async def e(a, vmx):
+        return value
+    return e
+
+
+_U = _e_vmx("vm_id")          # await vmx(a["vm_id"])
+_R = _e_req
+_O = _e_opt
+_C = _e_cst
+_UP = (_O("user", ""), _O("password", ""))   # guest 凭据可选项（大多数 vmrun/vmcli 工具尾部）
+_DELETED = {"status": "deleted"}
+
+
+# ---- 自定义逻辑分支（非纯透传，保持原实现） ----
+
+async def _h_set_vm_encryption_password(a, vmx):
+    try:
+        key = await get_vmx_path(a["vm_id"])
+    except ToolError:
+        key = a["vm_id"]
+    _enc_passwords[key] = a["password"]
+    return {"status": "stored", "vm_id": key, "note": "密码仅存于服务进程内存，进程重启后失效；持久方案用 env VMWARE_ENC_PASSWORD"}
+
+
+async def _h_vm_resolve(a, vmx):
+    client = get_client()
+    query = str(a["query"]).lower()
+    vms = await client.list_vms()
+    for vm in vms:
+        _vm_path_cache[vm["id"]] = vm["path"]
+    resolved = []
+    for vm in vms:
+        if query in str(vm.get("path", "")).lower() or query in str(vm.get("id", "")).lower():
+            entry = {"id": vm.get("id"), "path": vm.get("path"), "encryptionType": _vmx_encryption(vm.get("path", ""))}
+            try:
+                entry["power"] = await client.get_power_state(vm["id"])
+            except Exception as e:
+                entry["power"] = f"unavailable: {type(e).__name__}: {e}"
+            resolved.append(entry)
+    return {"query": a["query"], "count": len(resolved), "matches": resolved}
+
+
+async def _h_vm_health(a, vmx):
+    vmrun = get_vmrun()
+    vmx_path = await vmx(a["vm_id"])
+    vmdir = os.path.dirname(vmx_path) or "."
+    health = {"vm_id": a["vm_id"], "vmx": vmx_path, "encryptionType": _vmx_encryption(vmx_path)}
+    try:
+        listing = await vmrun.list_running()
+        health["running"] = vmx_path.lower() in listing.lower()
+    except ToolError as e:
+        health["running"] = f"unknown: {e}"
+    try:
+        health["tools"] = await vmrun.check_tools_state(vmx_path)
+    except ToolError as e:
+        health["tools"] = f"error: {e}"
+    try:
+        health["ip"] = await vmrun.get_guest_ip(vmx_path)
+    except ToolError:
+        health["ip"] = None
+    vmem = glob.glob(os.path.join(vmdir, "*.vmem"))
+    vmss = glob.glob(os.path.join(vmdir, "*.vmss"))
+    health["suspend_artifacts"] = {"vmem": vmem, "vmss": vmss}
+    if vmem and vmss:
+        health["hint"] = "存在 .vmem/.vmss：VM 多半被空闲挂起（非关机），vmrun_start 可从挂起点无损恢复"
+    health["log_tail"] = _log_tail(os.path.join(vmdir, "vmware.log"), 20)
+    return health
+
+
+async def _h_vm_log_tail(a, vmx):
+    vmx_path = await vmx(a["vm_id"])
+    return {"log": _log_tail(os.path.join(os.path.dirname(vmx_path) or ".", "vmware.log"), int(a.get("lines", 50)))}
+
+
+async def _h_screenshot_ocr(a, vmx):
+    image = a["output_path"]
+    await get_vmrun().capture_screen(await vmx(a["vm_id"]), image)
+    return _ocr_image(image)
+
+
+async def _h_vm_list(a, vmx):
+    result = await get_client().list_vms()
+    for vm in result:
+        _vm_path_cache[vm["id"]] = vm["path"]
+    return result
+
+
+async def _h_vm_create(a, vmx):
+    return await get_client().create_vm(a["vm_id"], a["name"])
+
+
+async def _h_vm_update(a, vmx):
+    settings = {k: v for k, v in a.items() if k != "vm_id" and v is not None}
+    return await get_client().update_vm(a["vm_id"], settings)
+
+
+async def _h_vm_nic_create(a, vmx):
+    return await get_client().create_nic(a["vm_id"], {"type": a["type"]})
+
+
+async def _h_vm_folder_create(a, vmx):
+    return await get_client().create_shared_folder(a["vm_id"], {"folder_id": a["folder_id"], "host_path": a["host_path"], "flags": a.get("flags", 0)})
+
+
+async def _h_network_create(a, vmx):
+    return await get_client().create_network({"name": a["name"], "type": a["type"]})
+
+
+async def _h_network_portforward_set(a, vmx):
+    return await get_client().update_portforward(a["vmnet"], a["protocol"], a["port"], {"guestIp": a["guest_ip"], "guestPort": a["guest_port"]})
+
+
+_ADAPTERS = {"c": get_client, "r": get_vmrun, "l": get_vmcli}
+
+
+def _uniform(target, method, exts, fixed):
+    async def h(a, vmx):
+        args = [await e(a, vmx) for e in exts]
+        r = await getattr(_ADAPTERS[target](), method)(*args)
+        return fixed if fixed is not None else r
+    return h
+
+
+_ROUTES = {
+    # ==================== REST（uniform） ====================
+    "vm_get": ("c", "get_vm", (_R("vm_id"),), None),
+    "vm_delete": ("c", "delete_vm", (_R("vm_id"),), _DELETED),
+    "vm_power_get": ("c", "get_power_state", (_R("vm_id"),), None),
+    "vm_power_set": ("c", "change_power_state", (_R("vm_id"), _R("state")), None),
+    "vm_nic_list": ("c", "list_nics", (_R("vm_id"),), None),
+    "vm_nic_delete": ("c", "delete_nic", (_R("vm_id"), _R("index")), _DELETED),
+    "vm_ip_get": ("c", "get_vm_ip", (_R("vm_id"),), None),
+    "vm_folder_list": ("c", "list_shared_folders", (_R("vm_id"),), None),
+    "vm_folder_delete": ("c", "delete_shared_folder", (_R("vm_id"), _R("folder_id")), _DELETED),
+    "network_list": ("c", "list_networks", (), None),
+    "network_portforward_list": ("c", "get_portforwards", (_R("vmnet"),), None),
+    "network_portforward_delete": ("c", "delete_portforward", (_R("vmnet"), _R("protocol"), _R("port")), _DELETED),
+    # ==================== VMRUN（48，全部 uniform） ====================
+    "vmrun_list": ("r", "list_running", (), None),
+    "vmrun_clone": ("r", "clone", (_U, _R("dest_path"), _O("clone_type", "linked"), _O("snapshot", ""), _O("clone_name", "")), None),
+    "vmrun_upgrade": ("r", "upgrade_vm", (_U,), None),
+    "vmrun_delete": ("r", "delete_vm", (_U,), None),
+    "vmrun_start": ("r", "start", (_U, _O("gui", True)), None),
+    "vmrun_stop": ("r", "stop", (_U, _O("hard", False)), None),
+    "vmrun_reset": ("r", "reset", (_U, _O("hard", False)), None),
+    "vmrun_suspend": ("r", "suspend", (_U, _O("hard", False)), None),
+    "vmrun_pause": ("r", "pause", (_U,), None),
+    "vmrun_unpause": ("r", "unpause", (_U,), None),
+    "vmrun_snapshot_list": ("r", "list_snapshots", (_U, _O("show_tree", False)), None),
+    "vmrun_snapshot_take": ("r", "snapshot", (_U, _R("name")), None),
+    "vmrun_snapshot_delete": ("r", "delete_snapshot", (_U, _R("name"), _O("delete_children", False)), None),
+    "vmrun_snapshot_revert": ("r", "revert_to_snapshot", (_U, _R("name")), None),
+    "vmrun_file_exists": ("r", "file_exists", (_U, _R("path"), *_UP), None),
+    "vmrun_dir_exists": ("r", "directory_exists", (_U, _R("path"), *_UP), None),
+    "vmrun_ls": ("r", "list_directory", (_U, _R("path"), *_UP), None),
+    "vmrun_mkdir": ("r", "create_directory", (_U, _R("path"), *_UP), None),
+    "vmrun_rmdir": ("r", "delete_directory", (_U, _R("path"), *_UP), None),
+    "vmrun_rm": ("r", "delete_file", (_U, _R("path"), *_UP), None),
+    "vmrun_rename": ("r", "rename_file", (_U, _R("old_path"), _R("new_path"), *_UP), None),
+    "vmrun_copy_to": ("r", "copy_to_guest", (_U, _R("host_path"), _R("guest_path"), *_UP), None),
+    "vmrun_copy_from": ("r", "copy_from_guest", (_U, _R("guest_path"), _R("host_path"), *_UP), None),
+    "vmrun_temp_file": ("r", "create_temp_file", (_U, *_UP), None),
+    "vmrun_copy_dir_to": ("r", "copy_dir_to", (_U, _R("host_path"), _R("guest_path"), _O("include", ""), _O("exclude", ""), *_UP), None),
+    "vmrun_copy_dir_from": ("r", "copy_dir_from", (_U, _R("guest_path"), _R("host_path"), _O("include", ""), _O("exclude", ""), *_UP), None),
+    "vmrun_run": ("r", "run_program", (_U, _R("program"), _O("args", ""), _O("no_wait", False), _C(False), _O("interactive", False), *_UP), None),
+    "vmrun_script": ("r", "run_script", (_U, _R("interpreter"), _R("script"), _O("no_wait", False), _C(False), _C(False), *_UP), None),
+    "vmrun_ps": ("r", "list_processes", (_U, *_UP), None),
+    "vmrun_kill": ("r", "kill_process", (_U, _R("pid"), *_UP), None),
+    "vmrun_shared_enable": ("r", "enable_shared_folders", (_U,), None),
+    "vmrun_shared_disable": ("r", "disable_shared_folders", (_U,), None),
+    "vmrun_shared_add": ("r", "add_shared_folder", (_U, _R("name"), _R("host_path")), None),
+    "vmrun_shared_remove": ("r", "remove_shared_folder", (_U, _R("name")), None),
+    "vmrun_shared_set": ("r", "set_shared_folder_state", (_U, _R("name"), _R("host_path"), _O("writable", True)), None),
+    "vmrun_device_connect": ("r", "connect_device", (_U, _R("device")), None),
+    "vmrun_device_disconnect": ("r", "disconnect_device", (_U, _R("device")), None),
+    "vmrun_var_read": ("r", "read_variable", (_U, _R("var_type"), _R("name"), *_UP), None),
+    "vmrun_var_write": ("r", "write_variable", (_U, _R("var_type"), _R("name"), _R("value"), *_UP), None),
+    "vmrun_screenshot": ("r", "capture_screen", (_U, _R("output_path")), None),
+    "vmrun_keystrokes": ("r", "type_keystrokes", (_U, _R("keystrokes")), None),
+    "vmrun_tools_install": ("r", "install_tools", (_U,), None),
+    "vmrun_tools_state": ("r", "check_tools_state", (_U,), None),
+    "vmrun_guest_ip": ("r", "get_guest_ip", (_U, _O("wait", False)), None),
+    "vmrun_host_networks": ("r", "list_host_networks", (), None),
+    "vmrun_portforward_list": ("r", "list_port_forwardings", (_R("network"),), None),
+    "vmrun_portforward_set": ("r", "set_port_forwarding", (_R("network"), _R("protocol"), _R("host_port"), _R("guest_ip"), _R("guest_port"), _O("description", "")), None),
+    "vmrun_portforward_delete": ("r", "delete_port_forwarding", (_R("network"), _R("protocol"), _R("host_port")), None),
+    # ==================== VMCLI（65，全部 uniform） ====================
+    "snapshot_list": ("l", "snapshot_list", (_U,), None),
+    "snapshot_take": ("l", "snapshot_take", (_U, _R("name")), None),
+    "snapshot_revert": ("l", "snapshot_revert", (_U, _R("name")), None),
+    "snapshot_delete": ("l", "snapshot_delete", (_U, _R("name"), _O("delete_children", False)), None),
+    "snapshot_clone": ("l", "snapshot_clone", (_U, _R("snapshot_name"), _R("dest_path"), _O("clone_type", "linked")), None),
+    "guest_run": ("l", "guest_run", (_U, _R("program"), _O("args", ""), *_UP), None),
+    "guest_ps": ("l", "guest_ps", (_U, *_UP), None),
+    "guest_kill": ("l", "guest_kill", (_U, _R("pid"), *_UP), None),
+    "guest_ls": ("l", "guest_ls", (_U, _R("path"), *_UP), None),
+    "guest_mkdir": ("l", "guest_mkdir", (_U, _R("path"), *_UP), None),
+    "guest_rm": ("l", "guest_rm", (_U, _R("path"), *_UP), None),
+    "guest_rmdir": ("l", "guest_rmdir", (_U, _R("path"), *_UP), None),
+    "guest_copy_to": ("l", "guest_copy_to", (_U, _R("host_path"), _R("guest_path"), *_UP), None),
+    "guest_copy_from": ("l", "guest_copy_from", (_U, _R("guest_path"), _R("host_path"), *_UP), None),
+    "guest_env": ("l", "guest_env", (_U, *_UP), None),
+    "mks_screenshot": ("l", "mks_screenshot", (_U, _R("output_path")), None),
+    "mks_send_key": ("l", "mks_send_key", (_U, _R("key_sequence")), None),
+    "mks_query": ("l", "mks_query", (_U,), None),
+    "chipset_query": ("l", "chipset_query", (_U,), None),
+    "chipset_set_cpu": ("l", "chipset_set_cpu", (_U, _R("count")), None),
+    "chipset_set_memory": ("l", "chipset_set_memory", (_U, _R("size_mb")), None),
+    "chipset_set_cores": ("l", "chipset_set_cores_per_socket", (_U, _R("cores")), None),
+    "tools_query": ("l", "tools_query", (_U,), None),
+    "tools_install": ("l", "tools_install", (_U,), None),
+    "tools_upgrade": ("l", "tools_upgrade", (_U,), None),
+    "template_create": ("l", "template_create", (_U, _R("template_path"), _R("name")), None),
+    "template_deploy": ("l", "template_deploy", (_R("template_path"), _R("dest_path"), _R("name")), None),
+    "disk_query": ("l", "disk_query", (_U,), None),
+    "disk_create": ("l", "disk_create", (_U, _R("size_gb"), _O("disk_type", "scsi"), _O("adapter", 0), _O("device", 0)), None),
+    "disk_extend": ("l", "disk_extend", (_U, _R("new_size_gb"), _O("adapter", 0), _O("device", 0)), None),
+    "config_query": ("l", "config_query", (_U,), None),
+    "config_set": ("l", "config_set", (_U, _R("key"), _R("value")), None),
+    "power_query": ("l", "power_query", (_U,), None),
+    "power_start": ("l", "power_start", (_U,), None),
+    "power_stop": ("l", "power_stop", (_U,), None),
+    "power_pause": ("l", "power_pause", (_U,), None),
+    "power_unpause": ("l", "power_unpause", (_U,), None),
+    "power_reset": ("l", "power_reset", (_U,), None),
+    "power_suspend": ("l", "power_suspend", (_U,), None),
+    "ethernet_query": ("l", "ethernet_query", (_U,), None),
+    "ethernet_set_type": ("l", "ethernet_set_connection_type", (_U, _R("index"), _R("type")), None),
+    "ethernet_set_present": ("l", "ethernet_set_present", (_U, _R("index"), _R("present")), None),
+    "ethernet_set_connected": ("l", "ethernet_set_start_connected", (_U, _R("index"), _R("connected")), None),
+    "ethernet_set_device": ("l", "ethernet_set_virtual_device", (_U, _R("index"), _R("device")), None),
+    "ethernet_set_network": ("l", "ethernet_set_network_name", (_U, _R("index"), _R("name")), None),
+    "ethernet_purge": ("l", "ethernet_purge", (_U, _R("index")), None),
+    "hgfs_query": ("l", "hgfs_query", (_U,), None),
+    "hgfs_set_enabled": ("l", "hgfs_set_enabled", (_U, _R("index"), _R("enabled")), None),
+    "hgfs_set_path": ("l", "hgfs_set_host_path", (_U, _R("index"), _R("path")), None),
+    "hgfs_set_name": ("l", "hgfs_set_guest_name", (_U, _R("index"), _R("name")), None),
+    "hgfs_set_read": ("l", "hgfs_set_read_access", (_U, _R("index"), _R("read")), None),
+    "hgfs_set_write": ("l", "hgfs_set_write_access", (_U, _R("index"), _R("write")), None),
+    "serial_query": ("l", "serial_query", (_U,), None),
+    "serial_set_present": ("l", "serial_set_present", (_U, _R("index"), _R("present")), None),
+    "serial_purge": ("l", "serial_purge", (_U, _R("index")), None),
+    "sata_query": ("l", "sata_query", (_U,), None),
+    "sata_set_present": ("l", "sata_set_present", (_U, _R("adapter"), _R("present")), None),
+    "sata_purge": ("l", "sata_purge", (_U, _R("adapter")), None),
+    "nvme_query": ("l", "nvme_query", (_U,), None),
+    "nvme_set_present": ("l", "nvme_set_present", (_U, _R("adapter"), _R("present")), None),
+    "nvme_purge": ("l", "nvme_purge", (_U, _R("adapter")), None),
+    "vprobes_query": ("l", "vprobes_query", (_U,), None),
+    "vprobes_enable": ("l", "vprobes_set_enabled", (_U, _R("enabled")), None),
+    "vprobes_load": ("l", "vprobes_load", (_U, _R("script_path")), None),
+    "vprobes_reset": ("l", "vprobes_reset", (_U,), None),
+}
+
+_HANDLERS = {name: _uniform(*entry) for name, entry in _ROUTES.items()}
+_HANDLERS.update({
+    "set_vm_encryption_password": _h_set_vm_encryption_password,
+    "vm_resolve": _h_vm_resolve,
+    "vm_health": _h_vm_health,
+    "vm_log_tail": _h_vm_log_tail,
+    "screenshot_ocr": _h_screenshot_ocr,
+    "vm_list": _h_vm_list,
+    "vm_create": _h_vm_create,
+    "vm_update": _h_vm_update,
+    "vm_nic_create": _h_vm_nic_create,
+    "vm_folder_create": _h_vm_folder_create,
+    "network_create": _h_network_create,
+    "network_portforward_set": _h_network_portforward_set,
+})
+
 @server.call_tool()
 @_structured
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
@@ -479,341 +772,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         enc_password.set(a.get("enc_pass", "") or _enc_passwords.get(path, "") or os.getenv("VMWARE_ENC_PASSWORD", ""))
         return path
 
-    # ==================== SERVER ====================
-    if name == "set_vm_encryption_password":
-        try:
-            key = await get_vmx_path(a["vm_id"])
-        except ToolError:
-            key = a["vm_id"]
-        _enc_passwords[key] = a["password"]
-        result = {"status": "stored", "vm_id": key, "note": "密码仅存于服务进程内存，进程重启后失效；持久方案用 env VMWARE_ENC_PASSWORD"}
-    elif name == "vm_resolve":
-        query = str(a["query"]).lower()
-        vms = await client.list_vms()
-        for vm in vms:
-            _vm_path_cache[vm["id"]] = vm["path"]
-        resolved = []
-        for vm in vms:
-            if query in str(vm.get("path", "")).lower() or query in str(vm.get("id", "")).lower():
-                entry = {"id": vm.get("id"), "path": vm.get("path"), "encryptionType": _vmx_encryption(vm.get("path", ""))}
-                try:
-                    entry["power"] = await client.get_power_state(vm["id"])
-                except Exception as e:
-                    entry["power"] = f"unavailable: {type(e).__name__}: {e}"
-                resolved.append(entry)
-        result = {"query": a["query"], "count": len(resolved), "matches": resolved}
-    elif name == "vm_health":
-        vmx_path = await vmx(a["vm_id"])
-        vmdir = os.path.dirname(vmx_path) or "."
-        health = {"vm_id": a["vm_id"], "vmx": vmx_path, "encryptionType": _vmx_encryption(vmx_path)}
-        try:
-            listing = await vmrun.list_running()
-            health["running"] = vmx_path.lower() in listing.lower()
-        except ToolError as e:
-            health["running"] = f"unknown: {e}"
-        try:
-            health["tools"] = await vmrun.check_tools_state(vmx_path)
-        except ToolError as e:
-            health["tools"] = f"error: {e}"
-        try:
-            health["ip"] = await vmrun.get_guest_ip(vmx_path)
-        except ToolError:
-            health["ip"] = None
-        vmem = glob.glob(os.path.join(vmdir, "*.vmem"))
-        vmss = glob.glob(os.path.join(vmdir, "*.vmss"))
-        health["suspend_artifacts"] = {"vmem": vmem, "vmss": vmss}
-        if vmem and vmss:
-            health["hint"] = "存在 .vmem/.vmss：VM 多半被空闲挂起（非关机），vmrun_start 可从挂起点无损恢复"
-        health["log_tail"] = _log_tail(os.path.join(vmdir, "vmware.log"), 20)
-        result = health
-    elif name == "vm_log_tail":
-        vmx_path = await vmx(a["vm_id"])
-        result = {"log": _log_tail(os.path.join(os.path.dirname(vmx_path) or ".", "vmware.log"), int(a.get("lines", 50)))}
-    elif name == "screenshot_ocr":
-        image = a["output_path"]
-        await vmrun.capture_screen(await vmx(a["vm_id"]), image)
-        result = _ocr_image(image)
-    # ==================== REST API ====================
-    if name == "vm_list":
-        result = await client.list_vms()
-        for vm in result:
-            _vm_path_cache[vm["id"]] = vm["path"]
-    elif name == "vm_get":
-        result = await client.get_vm(a["vm_id"])
-    elif name == "vm_create":
-        result = await client.create_vm(a["vm_id"], a["name"])
-    elif name == "vm_delete":
-        await client.delete_vm(a["vm_id"])
-        result = {"status": "deleted"}
-    elif name == "vm_update":
-        settings = {k: v for k, v in a.items() if k != "vm_id" and v is not None}
-        result = await client.update_vm(a["vm_id"], settings)
-    elif name == "vm_power_get":
-        result = await client.get_power_state(a["vm_id"])
-    elif name == "vm_power_set":
-        result = await client.change_power_state(a["vm_id"], a["state"])
-    elif name == "vm_nic_list":
-        result = await client.list_nics(a["vm_id"])
-    elif name == "vm_nic_create":
-        result = await client.create_nic(a["vm_id"], {"type": a["type"]})
-    elif name == "vm_nic_delete":
-        await client.delete_nic(a["vm_id"], a["index"])
-        result = {"status": "deleted"}
-    elif name == "vm_ip_get":
-        result = await client.get_vm_ip(a["vm_id"])
-    elif name == "vm_folder_list":
-        result = await client.list_shared_folders(a["vm_id"])
-    elif name == "vm_folder_create":
-        result = await client.create_shared_folder(a["vm_id"], {"folder_id": a["folder_id"], "host_path": a["host_path"], "flags": a.get("flags", 0)})
-    elif name == "vm_folder_delete":
-        await client.delete_shared_folder(a["vm_id"], a["folder_id"])
-        result = {"status": "deleted"}
-    elif name == "network_list":
-        result = await client.list_networks()
-    elif name == "network_create":
-        result = await client.create_network({"name": a["name"], "type": a["type"]})
-    elif name == "network_portforward_list":
-        result = await client.get_portforwards(a["vmnet"])
-    elif name == "network_portforward_set":
-        result = await client.update_portforward(a["vmnet"], a["protocol"], a["port"], {"guestIp": a["guest_ip"], "guestPort": a["guest_port"]})
-    elif name == "network_portforward_delete":
-        await client.delete_portforward(a["vmnet"], a["protocol"], a["port"])
-        result = {"status": "deleted"}
-
-    # ==================== VMRUN ====================
-    elif name == "vmrun_list":
-        result = await vmrun.list_running()
-    elif name == "vmrun_clone":
-        result = await vmrun.clone(await vmx(a["vm_id"]), a["dest_path"], a.get("clone_type", "linked"), a.get("snapshot", ""), a.get("clone_name", ""))
-    elif name == "vmrun_upgrade":
-        result = await vmrun.upgrade_vm(await vmx(a["vm_id"]))
-    elif name == "vmrun_delete":
-        result = await vmrun.delete_vm(await vmx(a["vm_id"]))
-    elif name == "vmrun_start":
-        result = await vmrun.start(await vmx(a["vm_id"]), a.get("gui", True))
-    elif name == "vmrun_stop":
-        result = await vmrun.stop(await vmx(a["vm_id"]), a.get("hard", False))
-    elif name == "vmrun_reset":
-        result = await vmrun.reset(await vmx(a["vm_id"]), a.get("hard", False))
-    elif name == "vmrun_suspend":
-        result = await vmrun.suspend(await vmx(a["vm_id"]), a.get("hard", False))
-    elif name == "vmrun_pause":
-        result = await vmrun.pause(await vmx(a["vm_id"]))
-    elif name == "vmrun_unpause":
-        result = await vmrun.unpause(await vmx(a["vm_id"]))
-    elif name == "vmrun_snapshot_list":
-        result = await vmrun.list_snapshots(await vmx(a["vm_id"]), a.get("show_tree", False))
-    elif name == "vmrun_snapshot_take":
-        result = await vmrun.snapshot(await vmx(a["vm_id"]), a["name"])
-    elif name == "vmrun_snapshot_delete":
-        result = await vmrun.delete_snapshot(await vmx(a["vm_id"]), a["name"], a.get("delete_children", False))
-    elif name == "vmrun_snapshot_revert":
-        result = await vmrun.revert_to_snapshot(await vmx(a["vm_id"]), a["name"])
-    elif name == "vmrun_file_exists":
-        result = await vmrun.file_exists(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_dir_exists":
-        result = await vmrun.directory_exists(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_ls":
-        result = await vmrun.list_directory(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_mkdir":
-        result = await vmrun.create_directory(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_rmdir":
-        result = await vmrun.delete_directory(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_rm":
-        result = await vmrun.delete_file(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_rename":
-        result = await vmrun.rename_file(await vmx(a["vm_id"]), a["old_path"], a["new_path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_copy_to":
-        result = await vmrun.copy_to_guest(await vmx(a["vm_id"]), a["host_path"], a["guest_path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_copy_from":
-        result = await vmrun.copy_from_guest(await vmx(a["vm_id"]), a["guest_path"], a["host_path"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_temp_file":
-        result = await vmrun.create_temp_file(await vmx(a["vm_id"]), a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_copy_dir_to":
-        result = await vmrun.copy_dir_to(await vmx(a["vm_id"]), a["host_path"], a["guest_path"], a.get("include", ""), a.get("exclude", ""), a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_copy_dir_from":
-        result = await vmrun.copy_dir_from(await vmx(a["vm_id"]), a["guest_path"], a["host_path"], a.get("include", ""), a.get("exclude", ""), a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_run":
-        result = await vmrun.run_program(await vmx(a["vm_id"]), a["program"], a.get("args", ""), a.get("no_wait", False), False, a.get("interactive", False), a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_script":
-        result = await vmrun.run_script(await vmx(a["vm_id"]), a["interpreter"], a["script"], a.get("no_wait", False), False, False, a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_ps":
-        result = await vmrun.list_processes(await vmx(a["vm_id"]), a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_kill":
-        result = await vmrun.kill_process(await vmx(a["vm_id"]), a["pid"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_shared_enable":
-        result = await vmrun.enable_shared_folders(await vmx(a["vm_id"]))
-    elif name == "vmrun_shared_disable":
-        result = await vmrun.disable_shared_folders(await vmx(a["vm_id"]))
-    elif name == "vmrun_shared_add":
-        result = await vmrun.add_shared_folder(await vmx(a["vm_id"]), a["name"], a["host_path"])
-    elif name == "vmrun_shared_remove":
-        result = await vmrun.remove_shared_folder(await vmx(a["vm_id"]), a["name"])
-    elif name == "vmrun_shared_set":
-        result = await vmrun.set_shared_folder_state(await vmx(a["vm_id"]), a["name"], a["host_path"], a.get("writable", True))
-    elif name == "vmrun_device_connect":
-        result = await vmrun.connect_device(await vmx(a["vm_id"]), a["device"])
-    elif name == "vmrun_device_disconnect":
-        result = await vmrun.disconnect_device(await vmx(a["vm_id"]), a["device"])
-    elif name == "vmrun_var_read":
-        result = await vmrun.read_variable(await vmx(a["vm_id"]), a["var_type"], a["name"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_var_write":
-        result = await vmrun.write_variable(await vmx(a["vm_id"]), a["var_type"], a["name"], a["value"], a.get("user", ""), a.get("password", ""))
-    elif name == "vmrun_screenshot":
-        result = await vmrun.capture_screen(await vmx(a["vm_id"]), a["output_path"])
-    elif name == "vmrun_keystrokes":
-        result = await vmrun.type_keystrokes(await vmx(a["vm_id"]), a["keystrokes"])
-    elif name == "vmrun_tools_install":
-        result = await vmrun.install_tools(await vmx(a["vm_id"]))
-    elif name == "vmrun_tools_state":
-        result = await vmrun.check_tools_state(await vmx(a["vm_id"]))
-    elif name == "vmrun_guest_ip":
-        result = await vmrun.get_guest_ip(await vmx(a["vm_id"]), a.get("wait", False))
-    elif name == "vmrun_host_networks":
-        result = await vmrun.list_host_networks()
-    elif name == "vmrun_portforward_list":
-        result = await vmrun.list_port_forwardings(a["network"])
-    elif name == "vmrun_portforward_set":
-        result = await vmrun.set_port_forwarding(a["network"], a["protocol"], a["host_port"], a["guest_ip"], a["guest_port"], a.get("description", ""))
-    elif name == "vmrun_portforward_delete":
-        result = await vmrun.delete_port_forwarding(a["network"], a["protocol"], a["host_port"])
-
-    # ==================== VMCLI ====================
-    elif name == "snapshot_list":
-        result = await vmcli.snapshot_list(await vmx(a["vm_id"]))
-    elif name == "snapshot_take":
-        result = await vmcli.snapshot_take(await vmx(a["vm_id"]), a["name"])
-    elif name == "snapshot_revert":
-        result = await vmcli.snapshot_revert(await vmx(a["vm_id"]), a["name"])
-    elif name == "snapshot_delete":
-        result = await vmcli.snapshot_delete(await vmx(a["vm_id"]), a["name"], a.get("delete_children", False))
-    elif name == "snapshot_clone":
-        result = await vmcli.snapshot_clone(await vmx(a["vm_id"]), a["snapshot_name"], a["dest_path"], a.get("clone_type", "linked"))
-    elif name == "guest_run":
-        result = await vmcli.guest_run(await vmx(a["vm_id"]), a["program"], a.get("args", ""), a.get("user", ""), a.get("password", ""))
-    elif name == "guest_ps":
-        result = await vmcli.guest_ps(await vmx(a["vm_id"]), a.get("user", ""), a.get("password", ""))
-    elif name == "guest_kill":
-        result = await vmcli.guest_kill(await vmx(a["vm_id"]), a["pid"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_ls":
-        result = await vmcli.guest_ls(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_mkdir":
-        result = await vmcli.guest_mkdir(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_rm":
-        result = await vmcli.guest_rm(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_rmdir":
-        result = await vmcli.guest_rmdir(await vmx(a["vm_id"]), a["path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_copy_to":
-        result = await vmcli.guest_copy_to(await vmx(a["vm_id"]), a["host_path"], a["guest_path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_copy_from":
-        result = await vmcli.guest_copy_from(await vmx(a["vm_id"]), a["guest_path"], a["host_path"], a.get("user", ""), a.get("password", ""))
-    elif name == "guest_env":
-        result = await vmcli.guest_env(await vmx(a["vm_id"]), a.get("user", ""), a.get("password", ""))
-    elif name == "mks_screenshot":
-        result = await vmcli.mks_screenshot(await vmx(a["vm_id"]), a["output_path"])
-    elif name == "mks_send_key":
-        result = await vmcli.mks_send_key(await vmx(a["vm_id"]), a["key_sequence"])
-    elif name == "mks_query":
-        result = await vmcli.mks_query(await vmx(a["vm_id"]))
-    elif name == "chipset_query":
-        result = await vmcli.chipset_query(await vmx(a["vm_id"]))
-    elif name == "chipset_set_cpu":
-        result = await vmcli.chipset_set_cpu(await vmx(a["vm_id"]), a["count"])
-    elif name == "chipset_set_memory":
-        result = await vmcli.chipset_set_memory(await vmx(a["vm_id"]), a["size_mb"])
-    elif name == "chipset_set_cores":
-        result = await vmcli.chipset_set_cores_per_socket(await vmx(a["vm_id"]), a["cores"])
-    elif name == "tools_query":
-        result = await vmcli.tools_query(await vmx(a["vm_id"]))
-    elif name == "tools_install":
-        result = await vmcli.tools_install(await vmx(a["vm_id"]))
-    elif name == "tools_upgrade":
-        result = await vmcli.tools_upgrade(await vmx(a["vm_id"]))
-    elif name == "template_create":
-        result = await vmcli.template_create(await vmx(a["vm_id"]), a["template_path"], a["name"])
-    elif name == "template_deploy":
-        result = await vmcli.template_deploy(a["template_path"], a["dest_path"], a["name"])
-    elif name == "disk_query":
-        result = await vmcli.disk_query(await vmx(a["vm_id"]))
-    elif name == "disk_create":
-        result = await vmcli.disk_create(await vmx(a["vm_id"]), a["size_gb"], a.get("disk_type", "scsi"), a.get("adapter", 0), a.get("device", 0))
-    elif name == "disk_extend":
-        result = await vmcli.disk_extend(await vmx(a["vm_id"]), a["new_size_gb"], a.get("adapter", 0), a.get("device", 0))
-    elif name == "config_query":
-        result = await vmcli.config_query(await vmx(a["vm_id"]))
-    elif name == "config_set":
-        result = await vmcli.config_set(await vmx(a["vm_id"]), a["key"], a["value"])
-    elif name == "power_query":
-        result = await vmcli.power_query(await vmx(a["vm_id"]))
-    elif name == "power_start":
-        result = await vmcli.power_start(await vmx(a["vm_id"]))
-    elif name == "power_stop":
-        result = await vmcli.power_stop(await vmx(a["vm_id"]))
-    elif name == "power_pause":
-        result = await vmcli.power_pause(await vmx(a["vm_id"]))
-    elif name == "power_unpause":
-        result = await vmcli.power_unpause(await vmx(a["vm_id"]))
-    elif name == "power_reset":
-        result = await vmcli.power_reset(await vmx(a["vm_id"]))
-    elif name == "power_suspend":
-        result = await vmcli.power_suspend(await vmx(a["vm_id"]))
-    elif name == "ethernet_query":
-        result = await vmcli.ethernet_query(await vmx(a["vm_id"]))
-    elif name == "ethernet_set_type":
-        result = await vmcli.ethernet_set_connection_type(await vmx(a["vm_id"]), a["index"], a["type"])
-    elif name == "ethernet_set_present":
-        result = await vmcli.ethernet_set_present(await vmx(a["vm_id"]), a["index"], a["present"])
-    elif name == "ethernet_set_connected":
-        result = await vmcli.ethernet_set_start_connected(await vmx(a["vm_id"]), a["index"], a["connected"])
-    elif name == "ethernet_set_device":
-        result = await vmcli.ethernet_set_virtual_device(await vmx(a["vm_id"]), a["index"], a["device"])
-    elif name == "ethernet_set_network":
-        result = await vmcli.ethernet_set_network_name(await vmx(a["vm_id"]), a["index"], a["name"])
-    elif name == "ethernet_purge":
-        result = await vmcli.ethernet_purge(await vmx(a["vm_id"]), a["index"])
-    elif name == "hgfs_query":
-        result = await vmcli.hgfs_query(await vmx(a["vm_id"]))
-    elif name == "hgfs_set_enabled":
-        result = await vmcli.hgfs_set_enabled(await vmx(a["vm_id"]), a["index"], a["enabled"])
-    elif name == "hgfs_set_path":
-        result = await vmcli.hgfs_set_host_path(await vmx(a["vm_id"]), a["index"], a["path"])
-    elif name == "hgfs_set_name":
-        result = await vmcli.hgfs_set_guest_name(await vmx(a["vm_id"]), a["index"], a["name"])
-    elif name == "hgfs_set_read":
-        result = await vmcli.hgfs_set_read_access(await vmx(a["vm_id"]), a["index"], a["read"])
-    elif name == "hgfs_set_write":
-        result = await vmcli.hgfs_set_write_access(await vmx(a["vm_id"]), a["index"], a["write"])
-    elif name == "serial_query":
-        result = await vmcli.serial_query(await vmx(a["vm_id"]))
-    elif name == "serial_set_present":
-        result = await vmcli.serial_set_present(await vmx(a["vm_id"]), a["index"], a["present"])
-    elif name == "serial_purge":
-        result = await vmcli.serial_purge(await vmx(a["vm_id"]), a["index"])
-    elif name == "sata_query":
-        result = await vmcli.sata_query(await vmx(a["vm_id"]))
-    elif name == "sata_set_present":
-        result = await vmcli.sata_set_present(await vmx(a["vm_id"]), a["adapter"], a["present"])
-    elif name == "sata_purge":
-        result = await vmcli.sata_purge(await vmx(a["vm_id"]), a["adapter"])
-    elif name == "nvme_query":
-        result = await vmcli.nvme_query(await vmx(a["vm_id"]))
-    elif name == "nvme_set_present":
-        result = await vmcli.nvme_set_present(await vmx(a["vm_id"]), a["adapter"], a["present"])
-    elif name == "nvme_purge":
-        result = await vmcli.nvme_purge(await vmx(a["vm_id"]), a["adapter"])
-    elif name == "vprobes_query":
-        result = await vmcli.vprobes_query(await vmx(a["vm_id"]))
-    elif name == "vprobes_enable":
-        result = await vmcli.vprobes_set_enabled(await vmx(a["vm_id"]), a["enabled"])
-    elif name == "vprobes_load":
-        result = await vmcli.vprobes_load(await vmx(a["vm_id"]), a["script_path"])
-    elif name == "vprobes_reset":
-        result = await vmcli.vprobes_reset(await vmx(a["vm_id"]))
+    handler = _HANDLERS.get(name)
+    result = _UNHANDLED if handler is None else await handler(a, vmx)
 
     if result is _UNHANDLED:
         raise ToolError(f"Unknown tool: {name}", tool=name, hint="工具名不存在；以 list_tools 返回为准")
     if isinstance(result, str):
         return [TextContent(type="text", text=_truncate_output(result) if result else "OK")]
+    return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
     return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
 
 
