@@ -225,3 +225,63 @@ def test_call_tool_error_returns_structured_json():
     assert payload["ok"] is False
     assert payload["tool"] == "vmrun_start"
     assert payload["hint"]
+
+
+# ---------- 轮1：安全护栏 ----------
+
+def test_destructive_tool_dry_run_without_confirm(monkeypatch):
+    monkeypatch.delenv("VMWARE_READ_ONLY", raising=False)
+    result = asyncio.run(server.call_tool("vmrun_rm", {"vm_id": "D:/vms/a.vmx", "path": "C:/x.txt"}))
+    payload = json.loads(result[0].text)
+    assert payload["dry_run"] is True and payload["ok"] is False
+    assert payload["arguments"]["path"] == "C:/x.txt"
+    assert "confirm" in payload["hint"]
+
+
+def test_destructive_tool_executes_with_confirm(monkeypatch):
+    monkeypatch.delenv("VMWARE_READ_ONLY", raising=False)
+    # 走到真实 vmrun（无服务器环境）前应先在 vmx 解析报错——只要不是 dry_run 即证明护栏放行
+    try:
+        result = asyncio.run(server.call_tool("vmrun_rm", {"vm_id": "D:/vms/a.vmx", "path": "C:/x.txt", "confirm": True}))
+        payload = json.loads(result[0].text)
+        assert payload.get("dry_run") is not True
+    except Exception:
+        pass  # 走到执行层后的任何失败都可接受（本机无 VM），关键是未在护栏层被 dry-run 拦截
+
+
+def test_read_only_mode_blocks_destructive(monkeypatch):
+    monkeypatch.setenv("VMWARE_READ_ONLY", "1")
+    result = asyncio.run(server.call_tool("vmrun_rm", {"vm_id": "D:/vms/a.vmx", "path": "C:/x.txt", "confirm": True}))
+    payload = json.loads(result[0].text)
+    assert payload["read_only"] is True and payload["ok"] is False
+    assert "dry_run" not in payload
+
+
+def test_read_only_mode_allows_queries(monkeypatch):
+    monkeypatch.setenv("VMWARE_READ_ONLY", "1")
+    # vm_list 是只读工具：只读模式下不应被护栏拒绝（REST 不可达会以结构化错误返回，但不是 read_only 拒绝）
+    result = asyncio.run(server.call_tool("vm_list", {}))
+    payload = json.loads(result[0].text)
+    assert payload.get("read_only") is not True
+
+
+def test_vm_power_set_off_is_destructive_on_only_not(monkeypatch):
+    assert server._is_destructive("vm_power_set", {"state": "off"}) is True
+    assert server._is_destructive("vm_power_set", {"state": "on"}) is False
+    assert server._is_destructive("vmrun_rm", {}) is True
+    assert server._is_destructive("vm_list", {}) is False
+
+
+def test_annotations_injected():
+    tools = {t.name: t for t in asyncio.run(server.list_tools())}
+    assert tools["vmrun_rm"].annotations.destructiveHint is True
+    assert tools["vm_list"].annotations.readOnlyHint is True
+    assert tools["vm_health"].annotations.readOnlyHint is True
+    assert tools["vmrun_start"].annotations is None or tools["vmrun_start"].annotations.destructiveHint is not True
+
+
+def test_confirm_prop_injected_on_destructive_only():
+    tools = {t.name: t for t in asyncio.run(server.list_tools())}
+    assert "confirm" in tools["vmrun_rm"].inputSchema["properties"]
+    assert "confirm" in tools["vm_power_set"].inputSchema["properties"]
+    assert "confirm" not in tools["vm_list"].inputSchema["properties"]

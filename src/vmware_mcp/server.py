@@ -8,7 +8,7 @@ import os
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool, TextContent, ToolAnnotations
 
 from .client import VMwareClient
 from .errors import ToolError, make_hint
@@ -21,6 +21,44 @@ _vm_path_cache: dict[str, str] = {}
 _enc_passwords: dict[str, str] = {}
 _vm_path_lock = asyncio.Lock()
 _UNHANDLED = object()
+
+# 破坏性工具清单：删除/强停/杀进程/清空配置类。调用前须 confirm:true，否则返回 dry-run 预览；
+# VMWARE_READ_ONLY=1 时直接拒绝。vm_power_set 特例：仅 state=off（硬断电）按破坏性处理。
+DESTRUCTIVE_TOOLS: frozenset[str] = frozenset({
+    "vm_delete", "vmrun_delete",
+    "vmrun_stop", "vmrun_reset", "vmrun_suspend",
+    "vmrun_snapshot_delete", "vmrun_snapshot_revert",
+    "snapshot_delete", "snapshot_revert",
+    "vmrun_rm", "vmrun_rmdir", "vmrun_kill", "guest_kill",
+    "vmrun_portforward_delete", "network_portforward_delete",
+    "vm_nic_delete", "vm_folder_delete", "vmrun_shared_remove",
+    "ethernet_purge", "serial_purge", "sata_purge", "nvme_purge",
+    "disk_extend",
+})
+
+# 纯查询类工具：向宿主声明 readOnlyHint（写宿主文件的截图类与全部有副作用的工具不在列）
+READ_ONLY_TOOLS: frozenset[str] = frozenset({
+    "vm_list", "vm_get", "vm_power_get", "vm_nic_list", "vm_ip_get", "vm_folder_list",
+    "network_list", "network_portforward_list",
+    "vmrun_list", "vmrun_snapshot_list", "vmrun_file_exists", "vmrun_dir_exists",
+    "vmrun_ls", "vmrun_ps", "vmrun_tools_state", "vmrun_guest_ip",
+    "vmrun_host_networks", "vmrun_portforward_list", "vmrun_var_read",
+    "snapshot_list", "guest_ps", "guest_ls", "guest_env", "mks_query",
+    "chipset_query", "tools_query", "disk_query", "config_query", "power_query",
+    "ethernet_query", "hgfs_query", "serial_query", "sata_query", "nvme_query",
+    "vprobes_query",
+    "vm_resolve", "vm_health", "vm_log_tail",
+})
+
+
+def _is_destructive(name: str, arguments: dict) -> bool:
+    if name == "vm_power_set":
+        return arguments.get("state") == "off"
+    return name in DESTRUCTIVE_TOOLS
+
+
+def _read_only_mode() -> bool:
+    return os.getenv("VMWARE_READ_ONLY", "").strip().lower() in ("1", "true", "yes", "on")
 
 _client: VMwareClient | None = None
 _vmrun: VMRun | None = None
@@ -123,12 +161,12 @@ def _ocr_image(image_path: str) -> dict:
     return {"ok": True, "image": image_path, "lines": lines, "text": "\n".join(item["text"] for item in lines)}
 
 
-def T(name: str, desc: str, props: dict, required: list | None = None) -> Tool:
+def T(name: str, desc: str, props: dict, required: list | None = None, annotations: ToolAnnotations | None = None) -> Tool:
     """Helper to create Tool definitions."""
     schema = {"type": "object", "properties": props}
     if required:
         schema["required"] = required
-    return Tool(name=name, description=desc, inputSchema=schema)
+    return Tool(name=name, description=desc, inputSchema=schema, annotations=annotations)
 
 
 def _error_content(payload: dict) -> list[TextContent]:
@@ -349,12 +387,25 @@ async def list_tools() -> list[Tool]:
     enc_schema = {"type": "string", "description": "加密 VM 的密码（等效 vmrun -vp）；也可用 env VMWARE_ENC_PASSWORD 或 set_vm_encryption_password 预存"}
     # 所有 vm_id 参数统一写明双语义（vmx 绝对路径或 REST vm_id）
     vm_id_desc = "vmx 绝对路径（如 D:\\vms\\win11.vmx）或 REST vm_id（vm_list 获取），服务端自动解析"
+    confirm_schema = {"type": "boolean", "description": "破坏性操作确认：缺省时仅返回 dry-run 预览不执行；传 true 才实际执行。VMWARE_READ_ONLY=1 时无条件拒绝"}
     for tool in tools:
         props = tool.inputSchema["properties"]
         if tool.name.startswith("vmrun_") and "vm_id" in props and "enc_pass" not in props:
             props["enc_pass"] = dict(enc_schema)
         if "vm_id" in props and "description" not in props["vm_id"]:
             props["vm_id"] = {**props["vm_id"], "description": vm_id_desc}
+        # annotations 行为标注（宿主可据此决定是否自动批准）
+        hints = {}
+        if tool.name in READ_ONLY_TOOLS:
+            hints["readOnlyHint"] = True
+        if tool.name in DESTRUCTIVE_TOOLS:
+            hints["readOnlyHint"] = False
+            hints["destructiveHint"] = True
+        if hints:
+            tool.annotations = ToolAnnotations(**hints)
+        # 破坏性工具注入可选 confirm 参数（零破坏：可选，不改既有参数）
+        if tool.name in DESTRUCTIVE_TOOLS or tool.name == "vm_power_set":
+            props["confirm"] = dict(confirm_schema)
     return tools
 
 
@@ -366,6 +417,24 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     vmrun = get_vmrun()
     result = _UNHANDLED
     a = arguments
+
+    # 护栏：破坏性工具三层拦截（顺序：全局只读 → confirm 确认 → 放行）
+    if _is_destructive(name, a):
+        if _read_only_mode():
+            raise ToolError(
+                f"read-only mode: destructive tool '{name}' refused",
+                read_only=True,
+                hint="服务以 VMWARE_READ_ONLY=1 启动，一切破坏性操作被拒；去除该环境变量并重启服务后可用",
+            )
+        if not a.get("confirm"):
+            return _error_content({
+                "ok": False,
+                "dry_run": True,
+                "tool": name,
+                "arguments": {k: v for k, v in a.items() if k != "enc_pass"},
+                "note": "DRY-RUN：以上操作未执行",
+                "hint": f"确认无误后，携带 confirm: true 再次调用以实际执行 {name}",
+            })
 
     # Helper：解析 vm_id，并为本次调用写入加密密码（显式 enc_pass > set 工具预存 > env，env 兜底在 vmx 内完成）
     async def vmx(vm_id: str) -> str:

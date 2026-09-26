@@ -46,6 +46,7 @@ class ToolError(Exception):
         stderr: str = "",
         duration_ms: int | None = None,
         timeout: bool = False,
+        read_only: bool = False,
         hint: str = "",
     ):
         super().__init__(message)
@@ -55,6 +56,7 @@ class ToolError(Exception):
         self.stderr = stderr
         self.duration_ms = duration_ms
         self.timeout = timeout
+        self.read_only = read_only
         self.hint = hint or make_hint(message)
 
     def to_dict(self) -> dict:
@@ -67,5 +69,6 @@ class ToolError(Exception):
             "stderr": self.stderr,
             "duration_ms": self.duration_ms,
             "timeout": self.timeout,
+            "read_only": self.read_only,
             "hint": self.hint,
         }
