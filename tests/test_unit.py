@@ -454,3 +454,60 @@ def test_tls_verify_env(monkeypatch):
     c = server.get_client()
     assert c.verify is False
     monkeypatch.setattr("vmware_mcp.server._client", None)
+
+
+# ---------- 轮4：可观测性 ----------
+
+def test_call_log_success_info_emitted(caplog, monkeypatch):
+    import logging
+
+    class _FakeClient:
+        async def list_vms(self):
+            return []
+
+    monkeypatch.setattr(server, "get_client", lambda: _FakeClient())
+    with caplog.at_level(logging.INFO, logger="vmware_mcp"):
+        asyncio.run(server.call_tool("vm_list", {}))
+    recs = [r for r in caplog.records if r.getMessage().startswith("tool=vm_list")]
+    assert recs and "ok=True" in recs[-1].getMessage() and "duration_ms=" in recs[-1].getMessage()
+
+
+def test_call_log_error_warning_emitted(caplog):
+    import logging
+    with caplog.at_level(logging.WARNING, logger="vmware_mcp"):
+        asyncio.run(server.call_tool("no_such_tool", {}))
+    recs = [r for r in caplog.records if "tool=no_such_tool" in r.getMessage()]
+    assert recs and "ok=False" in recs[-1].getMessage()
+
+
+def test_call_log_default_level_silent(caplog, monkeypatch):
+    """默认 WARNING：成功路径的 INFO 日志不发射（main() basicConfig 默认级别下的实际行为）。"""
+    import logging
+
+    class _FakeClient:
+        async def list_vms(self):
+            return []
+
+    monkeypatch.setattr(server, "get_client", lambda: _FakeClient())
+    with caplog.at_level(logging.WARNING, logger="vmware_mcp"):
+        asyncio.run(server.call_tool("vm_list", {}))
+    assert not [r for r in caplog.records if "tool=vm_list" in r.getMessage() and "ok=True" in r.getMessage()]
+
+
+def test_setup_logging_env_levels(monkeypatch):
+    import logging
+    monkeypatch.delenv("VMWARE_LOG_LEVEL", raising=False)
+    logging.getLogger().handlers.clear()
+    server._setup_logging()
+    assert logging.getLogger().level == logging.WARNING
+
+    logging.getLogger().handlers.clear()
+    monkeypatch.setenv("VMWARE_LOG_LEVEL", "info")
+    server._setup_logging()
+    assert logging.getLogger().level == logging.INFO
+
+    logging.getLogger().handlers.clear()
+    monkeypatch.setenv("VMWARE_LOG_LEVEL", "bogus")
+    server._setup_logging()
+    assert logging.getLogger().level == logging.WARNING
+    logging.getLogger().handlers.clear()

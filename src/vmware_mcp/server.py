@@ -3,7 +3,10 @@
 import asyncio
 import glob
 import json
+import logging
 import os
+import sys
+import time
 
 import httpx
 from mcp.server import Server
@@ -15,6 +18,8 @@ from .errors import ToolError, make_hint
 from .runtime import enc_password, env_int
 from .vmcli import VMCli
 from .vmrun import VMRun
+
+logger = logging.getLogger("vmware_mcp")
 
 server = Server("vmware-mcp")
 _vm_path_cache: dict[str, str] = {}
@@ -183,16 +188,23 @@ def _truncate_output(text: str) -> str:
 
 
 def _structured(fn):
-    """call_tool 异常统一转结构化 JSON 文本响应；未预期异常也不再静默。"""
+    """call_tool 异常统一转结构化 JSON 文本响应；未预期异常也不再静默。
+    每次调用记一行 stderr 日志（工具名/成败/耗时，VMWARE_LOG_LEVEL=INFO 开启）。"""
 
     async def wrapper(name: str, arguments: dict) -> list[TextContent]:
+        started = time.monotonic()
         try:
-            return await fn(name, arguments)
+            content = await fn(name, arguments)
         except ToolError as e:
             e.tool = e.tool or name
+            logger.warning("tool=%s ok=False duration_ms=%d read_only=%s timeout=%s",
+                           name, int((time.monotonic() - started) * 1000), e.read_only, e.timeout)
             return _error_content(e.to_dict())
         except httpx.HTTPStatusError as e:
             body = e.response.text[:2000] if e.response is not None else ""
+            logger.warning("tool=%s ok=False duration_ms=%d http_status=%s",
+                           name, int((time.monotonic() - started) * 1000),
+                           getattr(e.response, "status_code", None))
             return _error_content({
                 "ok": False,
                 "tool": name,
@@ -202,12 +214,16 @@ def _structured(fn):
                 "hint": make_hint(body),
             })
         except Exception as e:
+            logger.warning("tool=%s ok=False duration_ms=%d unexpected=%s: %s",
+                           name, int((time.monotonic() - started) * 1000), type(e).__name__, e)
             return _error_content({
                 "ok": False,
                 "tool": name,
                 "error": f"{type(e).__name__}: {e}",
                 "hint": make_hint(str(e)),
             })
+        logger.info("tool=%s ok=True duration_ms=%d", name, int((time.monotonic() - started) * 1000))
+        return content
 
     wrapper.__name__ = fn.__name__
     wrapper.__doc__ = fn.__doc__
@@ -789,8 +805,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     return [TextContent(type="text", text=_truncate_output(json.dumps(result, indent=2, ensure_ascii=False)) if result else "OK")]
 
 
+def _setup_logging() -> None:
+    """stdout 只跑协议；一切人类可读日志走 stderr。默认 WARNING（基本静默），INFO 起输出每次调用的耗时行。"""
+    logging.basicConfig(
+        level=getattr(logging, os.getenv("VMWARE_LOG_LEVEL", "WARNING").strip().upper(), logging.WARNING),
+        stream=sys.stderr,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+
 def main():
     import asyncio
+
+    _setup_logging()
 
     async def run():
         async with stdio_server() as (read_stream, write_stream):
