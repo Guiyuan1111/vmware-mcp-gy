@@ -58,3 +58,5 @@
 > **相关调研（2026-09-26）**：AI/LLM Agent 调用 VMware 自动化管理的生态调研（MCP server 对比、只读护栏最佳实践、Broadcom 官方 AI 助手）见 [`note/research/2026-09-26-ai-agent-vmware-automation-survey.md`](../../../research/2026-09-26-ai-agent-vmware-automation-survey.md)。其"护栏三层设计"（confirm → dry-run → 全局只读开关）是本报告 Blueprint 04 与 0.2.0 之后下一步演进的直接参考。
 >
 > **附记（2026-09-26，版本 0.3.0）**：四轮优化（详见 `note/release/0.3.0.md`）后，上表剩余"未修复"项全部收口：发现 4（6 个死方法）已删除；发现 6 中 `verify=False` 改为 `VMWARE_TLS_VERIFY` 可配、`-gp`/`-vp` argv 明文属 vmrun 机制本身无法根治但已做错误输出/日志脱敏。本轮新增：安全护栏三层（`VMWARE_READ_ONLY` 全局只读 / confirm-dry-run 二次确认 / annotations 声明，Blueprint 04 的护栏建议落地）、REST 连接池复用、子进程并发信号量（默认 8）、输出截断（默认 20000 字符）、stderr 调用耗时日志（`VMWARE_LOG_LEVEL=INFO` 开启）。单元测试 29 → **45**，工具数不变（137）。发现 3（声明/实现人工对齐、路由表化）仍为唯一未处置项，留待后续。
+>
+> **附记（2026-09-26，版本 0.3.1）**：性能优化版本（对比报告见 `note/report/perf/2026-09-26-perf-optimization-0.3.1.md`，基准程序入库 `benchmark/`）。上表最后一项"发现 3"正式收口：`call_tool` 的 135 分支 if/elif 链（圈复杂度 ~136）重写为 137 项路由表，分发行为经黄金快照 138/138 逐字节校验零变化；基准如实记录该改动性能中性（分发是 µs 级非瓶颈），收益为架构与可测性。真正的性能收益在枚举与 I/O 层：`tools/list` 构建缓存 4117x、真实 vmrun 16 路并发 5.1x、REST 连接复用 50→1 连接（11.0x）。另有两项热路径候选优化被基准否决回滚（详见报告 §3），体现"先基准后采纳"纪律。工具面（137）与护栏行为零变化，单测 45 → 47。

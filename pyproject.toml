@@ -1,6 +1,6 @@
 [project]
 name = "vmware-mcp"
-version = "0.3.0"
+version = "0.3.1"
 description = "MCP server for VMware Workstation Pro"
 readme = "README.md"
 requires-python = ">=3.10"

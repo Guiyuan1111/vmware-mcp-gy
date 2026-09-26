@@ -104,6 +104,12 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
 
+## 0.3.1 变更（性能优化）
+
+- `tools/list` 工具表进程内缓存：每次枚举 411.7 µs → 0.1 µs（4117x），输出字节级一致。
+- `call_tool` 分发链 → 137 项路由表（性能中性、架构收口：圈复杂度 136 → 约 10）；分发行为经黄金快照 138/138 逐字节校验。
+- 实测：真实 vmrun 16 路并发 5.1x 加速（16/16 无串扰）；REST 连接复用 50 → 1 TCP 连接（墙钟 11.0x）。基准程序见 [`benchmark/`](benchmark/)，对比报告见 [`note/report/perf/`](note/report/perf/)。
+
 ## 0.3.0 变更
 
 - **安全护栏**：`VMWARE_READ_ONLY` 全局只读开关、破坏性工具 confirm/dry-run 二次确认、工具列表 annotations（只读/破坏性提示）；工具面零破坏——`confirm` 为可选新增参数，不传时行为变为 dry-run（严格说这是安全语义修正，见 release note）。
@@ -118,6 +124,16 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 pip install -e ".[dev]"
 pytest                              # 单元测试（无需 VMware）
 VMWARE_IT=1 pytest -m integration   # 集成测试（需真实 VMware 环境）
+```
+
+性能基准（`benchmark/`，详见 [`note/report/perf/`](note/report/perf/)）：
+
+```bash
+python benchmark/bench_list_tools.py               # tools/list 构建 vs 缓存
+python benchmark/bench_dispatch.py                 # 分发机制（+端到端开销）
+python benchmark/bench_subprocess.py               # 真实 vmrun 串行 vs 信号量并发 + 隔离校验
+python benchmark/bench_rest.py                     # REST 每请求连接 vs 共享池
+python benchmark/verify_dispatch_equivalence.py check  # 分发行为黄金快照回归门
 ```
 
 ## 工具列表
