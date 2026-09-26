@@ -125,7 +125,11 @@ async def get_vmx_path(vm_id: str) -> str:
 
 
 def _vmx_encryption(vmx_path: str) -> str:
-    """读 vmx 文件中的 encryptionType；无该键返回 none，文件不可读返回 unknown。"""
+    """读 vmx 文件中的 encryptionType；无该键返回 none，文件不可读返回 unknown。
+
+    注：0.3.1 曾试过"整读+正则定位"，基准（benchmark/bench_hotpath.py）显示慢于逐行
+    （文件 I/O ~100µs 主导，encryptionType 通常在前几十行、逐行提前命中即停），已回滚。
+    """
     try:
         with open(vmx_path, "r", encoding="utf-8", errors="replace") as f:
             for line in f:

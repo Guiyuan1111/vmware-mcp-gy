@@ -16,7 +16,11 @@ def encryption_password() -> str:
 
 
 def decode_output(data: bytes) -> str:
-    """解码子进程输出：utf-8 优先，失败退 gb18030（GBK 超集，覆盖中文 Windows 的控制台输出）。"""
+    """解码子进程输出：utf-8 优先，失败退 gb18030（GBK 超集，覆盖中文 Windows 的控制台输出）。
+
+    注：0.3.1 曾试过 ASCII 快速路径（isascii + ascii 解码），基准显示慢于单趟 utf-8
+    解码（后者对 ASCII 即近 memcpy 速度，双趟扫描反而多一次遍历），已回滚。
+    """
     for encoding in ("utf-8", "gb18030"):
         try:
             return data.decode(encoding)

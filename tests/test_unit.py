@@ -511,3 +511,28 @@ def test_setup_logging_env_levels(monkeypatch):
     server._setup_logging()
     assert logging.getLogger().level == logging.WARNING
     logging.getLogger().handlers.clear()
+
+
+# ---------- 轮3：热路径行为锁 ----------
+
+def test_vmx_encryption_variants(tmp_path):
+    vmx = tmp_path / "a.vmx"
+    vmx.write_text('config.version = "8"\nencryptionType = "aes256"\ndisplayName = "t"\n', encoding="utf-8")
+    assert server._vmx_encryption(str(vmx)) == "aes256"
+    vmx.write_text("encryptionType=legal\n", encoding="utf-8")
+    assert server._vmx_encryption(str(vmx)) == "legal"
+    vmx.write_text('displayName = "x"\n', encoding="utf-8")
+    assert server._vmx_encryption(str(vmx)) == "none"
+    assert server._vmx_encryption(str(tmp_path / "missing.vmx")) == "unknown"
+    # 取第一条匹配行（多行命中时）
+    vmx.write_text('encryptionType = "first"\nencryptionType = "second"\n', encoding="utf-8")
+    assert server._vmx_encryption(str(vmx)) == "first"
+
+
+def test_decode_output_ascii_fast_path():
+    from vmware_mcp.runtime import decode_output
+    assert decode_output(b"Total running VMs: 2\r\n") == "Total running VMs: 2\r\n"
+    assert decode_output("") == "" if False else decode_output(b"") == ""
+    gbk = "虚拟机".encode("gb18030")
+    assert decode_output(gbk) == "虚拟机"
+    assert decode_output(b"\xff\xfe invalid") .endswith("invalid")  # 双双失败退 replace
