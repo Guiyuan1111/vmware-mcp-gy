@@ -58,6 +58,27 @@ claude mcp add vmware-mcp \
 | `VMWARE_TIMEOUT_QUERY` | `30` | 查询类工具超时（秒） |
 | `VMWARE_TIMEOUT_POWER` | `90` | 电源类工具超时（秒） |
 | `VMWARE_TIMEOUT_LONG` | `600` | clone/upgrade/模板/磁盘等长任务超时（秒） |
+| `VMWARE_READ_ONLY` | 关 | 置 `1` 后拒绝全部破坏性工具（护栏第一层） |
+| `VMWARE_MAX_CONCURRENCY` | `8` | vmrun/vmcli 子进程并发上限（信号量） |
+| `VMWARE_MAX_OUTPUT` | `20000` | 单次工具返回最大字符数，超出截断；`0` 关闭 |
+| `VMWARE_TLS_VERIFY` | 关 | 置 `1` 后 REST 连接校验 TLS 证书（vmrest 默认 http，无需开） |
+| `VMWARE_LOG_LEVEL` | `WARNING` | stderr 日志级别；`INFO` 起每次调用输出工具名/成败/耗时 |
+
+## 安全护栏
+
+对破坏性操作（删除、断电、还原快照等 24 个工具）实施三层护栏：
+
+1. **全局只读开关**：`VMWARE_READ_ONLY=1` 启动后，破坏性工具直接拒绝（返回 `read_only: true`），查询类工具不受影响；
+2. **confirm 二次确认**：未带 `confirm: true` 时，破坏性工具返回 dry-run 预览（含将执行的参数），不产生任何副作用；模型确认后携带 `confirm: true` 重调才实际执行；
+3. **annotations 声明**：破坏性工具在工具列表标注 `destructiveHint: true`，只读工具标注 `readOnlyHint: true`，供客户端/模型在调用前甄别。
+
+dry-run 响应示例：
+
+```json
+{"ok": false, "dry_run": true, "tool": "vmrun_delete", "arguments": {"vm_id": "D:/vms/a.vmx"}, "note": "DRY-RUN：以上操作未执行", "hint": "确认无误后，携带 confirm: true 再次调用以实际执行 vmrun_delete"}
+```
+
+注：`vm_power_set` 仅在 `state: "off"` 时视为破坏性（开机/挂起/暂停不受 confirm 约束）。
 
 ## 加密虚拟机
 
@@ -82,6 +103,14 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 ### 0.2.0 破坏性变更
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
+
+## 0.3.0 变更
+
+- **安全护栏**：`VMWARE_READ_ONLY` 全局只读开关、破坏性工具 confirm/dry-run 二次确认、工具列表 annotations（只读/破坏性提示）；工具面零破坏——`confirm` 为可选新增参数，不传时行为变为 dry-run（严格说这是安全语义修正，见 release note）。
+- **性能**：REST 走进程级 httpx 连接池（复用 TCP 连接）；vmrun/vmcli 子进程并发上限（`VMWARE_MAX_CONCURRENCY`，默认 8）；超长输出自动截断（`VMWARE_MAX_OUTPUT`，默认 20000 字符）。
+- **代码卫生**：删除 6 个无引用死方法；guest 密码与加密密码在错误输出/日志中脱敏（argv 明文传递是 vmrun/vmcli 机制本身，无法根治，见加密节警告）；`VMWARE_TLS_VERIFY` 可配。
+- **可观测性**：每次调用向 stderr 记一行工具名/成败/耗时（`VMWARE_LOG_LEVEL=INFO` 开启，默认静默）。
+- **集成验证**：41 项单元测试 + 只读集成实测通过。
 
 ## 测试
 
