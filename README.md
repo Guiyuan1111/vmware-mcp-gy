@@ -63,6 +63,7 @@ claude mcp add vmware-mcp \
 | `VMWARE_MAX_OUTPUT` | `20000` | 单次工具返回最大字符数，超出截断；`0` 关闭 |
 | `VMWARE_TLS_VERIFY` | 关 | 置 `1` 后 REST 连接校验 TLS 证书（vmrest 默认 http，无需开） |
 | `VMWARE_LOG_LEVEL` | `WARNING` | stderr 日志级别；`INFO` 起每次调用输出工具名/成败/耗时 |
+| `VMWARE_COMPACT_OUTPUT` | 关 | 置 `1` 后成功路径 JSON 紧凑输出（典型负载省 ~25% token）；默认缩进格式 |
 
 ## 安全护栏
 
@@ -103,6 +104,12 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 ### 0.2.0 破坏性变更
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
+
+## 0.3.2 变更（性能第二期）
+
+- `vm_health` / `vm_resolve` 内部并发化：互不依赖的只读探测并发执行，真实 vmrun 实测 vm_health **2.4x**（1021→421ms）；结果与调用序列经专项单测+黄金快照锁定不变。
+- `VMWARE_COMPACT_OUTPUT=1`（可选）：成功路径 JSON 紧凑输出省 ~25% token；默认关闭时输出与 0.3.1 逐字节一致。
+- 详见 [`note/report/perf/`](note/report/perf/)。
 
 ## 0.3.1 变更（性能优化）
 
