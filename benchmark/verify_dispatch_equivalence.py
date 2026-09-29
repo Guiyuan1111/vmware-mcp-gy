@@ -35,12 +35,14 @@ def _fake_return(method, args=()):
     if method == "list_running":
         return "Total running VMs: 0"  # vm_health 对返回值调 .lower()，须为字符串
     if method == "copy_from_guest":
-        # vmrun_run_job / vmrun_read_file 成功路径需要宿主侧真的出现回拷文件
-        try:
-            with open(args[2], "wb") as f:
-                f.write(b"hello from guest\n__JOB_RC=0\n")
-        except OSError:
-            pass
+        # vmrun_run_job / vmrun_read_file 成功路径需要宿主侧真的出现回拷文件；
+        # 仅对固定临时目录内的绝对路径落盘，避免透传路由的相对 host_path 污染 CWD
+        if os.path.isabs(args[2]) if len(args) > 2 else False:
+            try:
+                with open(args[2], "wb") as f:
+                    f.write(b"hello from guest\n__JOB_RC=0\n")
+            except OSError:
+                pass
         return "Copy: file transferred"
     return {"fake": method}
 
