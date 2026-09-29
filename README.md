@@ -82,6 +82,8 @@ claude mcp add vmware-mcp \
 | `rest` | 22 | 10.6KB（14%） |
 | `core` | 3 | 1.5KB（2%） |
 
+> 负载为紧凑 JSON 字节口径；SDK 缺省缩进格式下全量约 104.5KB，各作用域相对比例不变（口径更正见 0.4.2 报告）。
+
 典型 guest 操作工作流建议 `VMWARE_TOOLS=vmrun`；REST 元数据场景 `rest`；两者组合 `vmrun,rest`。协议符合性门：`python benchmark/protocol_conformance.py`（无需 VMware）。
 
 ## 工作流组合工具（v0.4.0）
@@ -195,6 +197,7 @@ python benchmark/bench_subprocess.py               # 真实 vmrun 串行 vs 信�
 python benchmark/bench_rest.py                     # REST 每请求连接 vs 共享池
 python benchmark/bench_composite.py                # vm_health/vm_resolve 内部并发（0.3.2）
 python benchmark/bench_output.py                   # 紧凑输出负载对比（0.3.2）
+python benchmark/bench_hotpath.py                  # 每调用热路径函数基准（0.3.1，含被否决候选记录）
 python benchmark/bench_workflow.py                 # 工作流组合工具 vs 多连调用（0.4.0，需 VM）
 python benchmark/bench_health_channels.py          # vm_health 通道对照 + 回退验证（0.4.2，需凭据）
 python benchmark/bench_lifecycle.py                # 冷启动/生命周期剖析（0.4.2）
