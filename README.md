@@ -66,6 +66,21 @@ claude mcp add vmware-mcp \
 | `VMWARE_COMPACT_OUTPUT` | 关 | 置 `1` 后成功路径 JSON 紧凑输出（典型负载省 ~25% token）；默认缩进格式 |
 | `VMWARE_HOST_TEMP_DIR` | 系统临时目录 | run_job/read_file 宿主侧中转文件目录 |
 | `VMWARE_READ_FILE_KB` | `256` | `vmrun_read_file` 单次最大读取 KB，超出置 `truncated: true` |
+| `VMWARE_TOOLS` | `all` | 工具面作用域：`rest`/`vmrun`/`vmcli`/`core`（逗号组合）；非法值回退全量。`vm_resolve`/`vm_health`/`vm_log_tail` 为 core，任何作用域保留 |
+
+## 工具面作用域（v0.4.1）
+
+`VMWARE_TOOLS=vmrun` 一类配置把工具列表裁剪到单一家族（域外调用入口即拒），给模型减噪、给暴露面收缩：
+
+| 作用域 | 工具数 | 列表负载（全量 74.8KB） |
+| --- | --- | --- |
+| 全量（默认） | 140 | 74.8KB |
+| `vmrun` | 56 | 35.7KB（48%） |
+| `vmcli` | 68 | 31.5KB（42%） |
+| `rest` | 22 | 10.6KB（14%） |
+| `core` | 3 | 1.5KB（2%） |
+
+典型 guest 操作工作流建议 `VMWARE_TOOLS=vmrun`；REST 元数据场景 `rest`；两者组合 `vmrun,rest`。协议符合性门：`python benchmark/protocol_conformance.py`（无需 VMware）。
 
 ## 工作流组合工具（v0.4.0）
 
@@ -119,6 +134,11 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 ### 0.2.0 破坏性变更
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
+
+## 0.4.1 变更（工具面作用域）
+
+- 新增 `VMWARE_TOOLS`（rest/vmrun/vmcli/core 逗号组合，缺省全量）：按家族裁剪工具列表与调用面，vmrun 作用域 56 工具/48% 负载；core 诊断工具任何作用域保留，域外调用入口即拒。
+- 新增 `benchmark/protocol_conformance.py`：stdio JSON-RPC 协议符合性门 9 项（stdout 零污染、dry-run 护栏经协议层在线等，无需 VMware）。
 
 ## 0.4.0 变更（工作流组合工具）
 
