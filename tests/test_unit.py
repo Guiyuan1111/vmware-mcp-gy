@@ -860,3 +860,54 @@ def test_read_file_silent_copy_failure_structured(monkeypatch, tmp_path):
         assert "符号链接" in e.hint and "cat" in e.hint
     assert raised
     assert list(tmp_path.iterdir()) == []
+
+
+# ---------- 轮9：工具面作用域（VMWARE_TOOLS） ----------
+
+def test_toolscope_default_is_all(monkeypatch):
+    monkeypatch.delenv("VMWARE_TOOLS", raising=False)
+    assert server._allowed_tools() is None
+    monkeypatch.setenv("VMWARE_TOOLS", "all")
+    assert server._allowed_tools() is None
+
+
+def test_toolscope_family_partition_covers_all_tools():
+    import asyncio
+    tools = asyncio.run(server.list_tools())
+    unmapped = {t.name for t in tools} - set(server._TOOL_FAMILY)
+    assert not unmapped, f"工具未映射家族: {unmapped}"
+
+
+def test_toolscope_vmrun_keeps_core_drops_rest(monkeypatch):
+    monkeypatch.setenv("VMWARE_TOOLS", "vmrun")
+    allowed = server._allowed_tools()
+    assert "vmrun_run_job" in allowed and "vmrun_copy_from" in allowed
+    assert "vm_health" in allowed and "vm_resolve" in allowed  # core 始终保留
+    assert "vm_list" not in allowed and "snapshot_list" not in allowed
+
+
+def test_toolscope_combo_and_invalid(monkeypatch):
+    monkeypatch.setenv("VMWARE_TOOLS", "rest,core")
+    allowed = server._allowed_tools()
+    assert "vm_list" in allowed and "network_create" in allowed
+    assert "vmrun_run_job" not in allowed and "vm_health" in allowed
+    monkeypatch.setenv("VMWARE_TOOLS", "bogus")
+    assert server._allowed_tools() is None  # 非法值回退全量（可用性优先）
+
+
+def test_toolscope_call_tool_guard(monkeypatch):
+    monkeypatch.setenv("VMWARE_TOOLS", "rest")
+    r = asyncio.run(server.call_tool("vmrun_wait_file", {"vm_id": "D:/vms/a.vmx", "path": "/x"}))
+    payload = json.loads(r[0].text)
+    assert payload["ok"] is False and "VMWARE_TOOLS=rest" in payload["error"]
+    # core 工具不被作用域拦截（后续在执行层失败也无妨，关键是无 scope 拒绝字样）
+    r2 = asyncio.run(server.call_tool("vm_health", {"vm_id": "D:/vms/a.vmx"}))
+    p2 = json.loads(r2[0].text)
+    assert "VMWARE_TOOLS=" not in p2.get("error", "")
+
+
+def test_toolscope_list_tools_filtered(monkeypatch):
+    monkeypatch.setenv("VMWARE_TOOLS", "vmrun")
+    tools = asyncio.run(server.list_tools())
+    allowed = server._allowed_tools()
+    assert all(t.name in allowed for t in tools) and len(tools) == len(allowed) < 140

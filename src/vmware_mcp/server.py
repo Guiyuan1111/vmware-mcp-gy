@@ -453,7 +453,10 @@ async def list_tools() -> list[Tool]:
     global _TOOLS_CACHE
     if _TOOLS_CACHE is None:
         _TOOLS_CACHE = _build_tools()
-    return _TOOLS_CACHE
+    allowed = _allowed_tools()
+    if allowed is None:
+        return _TOOLS_CACHE
+    return [t for t in _TOOLS_CACHE if t.name in allowed]
 
 
 # ==================== 分发路由表（v0.3.1：if/elif 链 → O(1) 查表） ====================
@@ -958,6 +961,46 @@ _HANDLERS.update({
     "vmrun_wait_file": _h_vmrun_wait_file,
 })
 
+# ==================== 工具面作用域（v0.4.1：VMWARE_TOOLS 按家族裁剪暴露面） ====================
+# 家族：c=REST(vmrest) / r=vmrun / l=vmcli；core=跨家族诊断与 vm_id 解析（任何作用域都保留）
+_FAMILY_OF_ADAPTER = {"c": "rest", "r": "vmrun", "l": "vmcli"}
+_TOOL_FAMILY: dict[str, str] = {name: _FAMILY_OF_ADAPTER[entry[0]] for name, entry in _ROUTES.items()}
+_TOOL_FAMILY.update({
+    "vm_resolve": "core", "vm_health": "core", "vm_log_tail": "core",
+    "vm_list": "rest", "vm_create": "rest", "vm_update": "rest",
+    "vm_nic_create": "rest", "vm_folder_create": "rest",
+    "network_create": "rest", "network_portforward_set": "rest",
+    "set_vm_encryption_password": "vmrun",
+    "vmrun_run_job": "vmrun", "vmrun_read_file": "vmrun", "vmrun_wait_file": "vmrun",
+    "screenshot_ocr": "vmrun",
+})
+_TOOLSET_ALIASES = {"rest": "rest", "vmrun": "vmrun", "vmcli": "vmcli", "core": "core", "all": "all", "c": "rest", "r": "vmrun", "l": "vmcli"}
+_allowed_cache: dict[str, frozenset[str] | None] = {}
+
+
+def _allowed_tools() -> frozenset[str] | None:
+    """解析 VMWARE_TOOLS（rest/vmrun/vmcli/core 的逗号组合；all 或缺省=全量）。
+    非法值回退全量（可用性优先）并向 stderr 告警。core 诊断工具在任何作用域下保留。"""
+    raw = os.getenv("VMWARE_TOOLS", "").strip().lower()
+    if raw in _allowed_cache:
+        return _allowed_cache[raw]
+    result: frozenset[str] | None
+    if not raw or raw == "all":
+        result = None
+    else:
+        fams = set()
+        for tok in (t.strip() for t in raw.split(",")):
+            alias = _TOOLSET_ALIASES.get(tok)
+            if alias is None:
+                logger.warning("VMWARE_TOOLS 含未知值 %r，已忽略并回退全量工具面（合法：all/rest/vmrun/vmcli/core）", tok)
+                fams = set()
+                break
+            fams.add(alias)
+        result = None if not fams else frozenset(
+            n for n, f in _TOOL_FAMILY.items() if f in fams or f == "core")
+    _allowed_cache[raw] = result
+    return result
+
 @server.call_tool()
 @_structured
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
@@ -966,6 +1009,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     vmrun = get_vmrun()
     result = _UNHANDLED
     a = arguments
+
+    # 作用域守卫：VMWARE_TOOLS 裁剪后的域外工具一律拒绝（先于护栏与 vm_id 解析）
+    allowed = _allowed_tools()
+    if allowed is not None and name not in allowed:
+        raise ToolError(
+            f"tool disabled by VMWARE_TOOLS={os.getenv('VMWARE_TOOLS', '').strip()}: {name}",
+            tool=name,
+            hint="当前服务按 VMWARE_TOOLS 裁剪了工具面；调整该环境变量并重启服务，或改用作用域内的工具（vm_resolve/vm_health/vm_log_tail 诊断工具始终可用）",
+        )
 
     # 护栏：破坏性工具三层拦截（顺序：全局只读 → confirm 确认 → 放行）
     if _is_destructive(name, a):
