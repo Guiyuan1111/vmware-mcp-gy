@@ -551,15 +551,36 @@ async def _health_ip(vmrun, vmx_path):
         return None
 
 
+# REST 快路径：running 走 power_state（纯元数据，对关机 VM 也可用，省一次 vmrun 孵化）；
+# 等价映射 poweredOn→True（其余状态 False，与 vmrun list_running 语义一致）；
+# REST 不可达/401 时回退 vmrun 探测（与 _resolve_power 的降级模式一致）。
+# ip 不走 REST：vmrest /ip 底层同为 VIX 且对关机 VM 返回 409（真机实测），无收益。
+async def _health_running_hybrid(client, vm_id, vmrun, vmx_path):
+    try:
+        st = await client.get_power_state(vm_id)
+        return str((st or {}).get("power", "")).lower() == "poweredon"
+    except Exception:
+        return await _health_running(vmrun, vmx_path)
+
+
 async def _h_vm_health(a, vmx):
+    client = get_client()
     vmrun = get_vmrun()
     vmx_path = await vmx(a["vm_id"])
     vmdir = os.path.dirname(vmx_path) or "."
     health = {"vm_id": a["vm_id"], "vmx": vmx_path, "encryptionType": _vmx_encryption(vmx_path)}
-    # 三个只读探测互不依赖，并发执行（并发上限仍由 vmrun._run 的全局信号量约束）；异常语义与原串行版一致
-    health["running"], health["tools"], health["ip"] = await asyncio.gather(
-        _health_running(vmrun, vmx_path), _health_tools(vmrun, vmx_path), _health_ip(vmrun, vmx_path),
-    )
+    # 三个只读探测互不依赖，并发执行（并发上限仍由 vmrun._run 的全局信号量约束）；异常语义与原串行版一致。
+    # vmx 直通形态维持全 vmrun 探测；REST vm_id 形态 running 优先走 REST 元数据（省 1 次 vmrun 孵化）
+    if str(a["vm_id"]).lower().endswith(".vmx"):
+        health["running"], health["tools"], health["ip"] = await asyncio.gather(
+            _health_running(vmrun, vmx_path), _health_tools(vmrun, vmx_path), _health_ip(vmrun, vmx_path),
+        )
+    else:
+        health["running"], health["tools"], health["ip"] = await asyncio.gather(
+            _health_running_hybrid(client, a["vm_id"], vmrun, vmx_path),
+            _health_tools(vmrun, vmx_path),
+            _health_ip(vmrun, vmx_path),
+        )
     vmem = glob.glob(os.path.join(vmdir, "*.vmem"))
     vmss = glob.glob(os.path.join(vmdir, "*.vmss"))
     health["suspend_artifacts"] = {"vmem": vmem, "vmss": vmss}

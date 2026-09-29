@@ -911,3 +911,86 @@ def test_toolscope_list_tools_filtered(monkeypatch):
     tools = asyncio.run(server.list_tools())
     allowed = server._allowed_tools()
     assert all(t.name in allowed for t in tools) and len(tools) == len(allowed) < 140
+
+
+# ---------- 轮10：vm_health REST 快路径（自动降级） ----------
+
+class _FakeVmRunProbe:
+    """记录 vmrun 调用；可选让指定方法抛错。"""
+
+    def __init__(self, raises=()):
+        self.calls = []
+        self.raises = raises
+
+    async def _m(self, name):
+        self.calls.append(name)
+        if name in self.raises:
+            raise ToolError(f"boom: {name}")
+        if name == "list_running":
+            return "Total running VMs: 1\nRESTID123"  # 身份直通桩下 vmx_path==vm_id，回退匹配按此口径
+        if name == "check_tools_state":
+            return "installed, running"
+        return "192.168.1.5"
+
+    def list_running(self):
+        return self._m("list_running")
+
+    def check_tools_state(self, vmx):
+        return self._m("check_tools_state")
+
+    def get_guest_ip(self, vmx):
+        return self._m("get_guest_ip")
+
+
+class _FakeRestClient:
+    def __init__(self, power={"power": "poweredOn"}, ip={"ip": "10.0.0.8"}, fail=False):
+        self.power, self.ip, self.fail = power, ip, fail
+        self.calls = []
+
+    async def get_power_state(self, vm_id):
+        self.calls.append("power")
+        if self.fail:
+            raise RuntimeError("rest down")
+        return self.power
+
+    async def get_vm_ip(self, vm_id):
+        self.calls.append("ip")
+        if self.fail:
+            raise RuntimeError("rest down")
+        return self.ip
+
+
+def test_vm_health_rest_fastpath(monkeypatch):
+    fr, fc = _FakeVmRunProbe(), _FakeRestClient()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fr)
+    monkeypatch.setattr(server, "get_client", lambda: fc)
+    h = asyncio.run(server._h_vm_health({"vm_id": "RESTID123"}, _identity_vmx_test))
+    assert h["running"] is True and h["ip"] == "192.168.1.5"       # ip 恒走 vmrun（真机实测 REST /ip 无收益且关机 409）
+    assert h["tools"] == "installed, running"
+    assert fc.calls == ["power"]                                    # 仅 running 走 REST 元数据
+    assert sorted(fr.calls) == ["check_tools_state", "get_guest_ip"]
+
+
+def test_vm_health_rest_powered_off_maps_false(monkeypatch):
+    fr, fc = _FakeVmRunProbe(), _FakeRestClient(power={"power": "poweredOff"}, ip={"ip": ""})
+    monkeypatch.setattr(server, "get_vmrun", lambda: fr)
+    monkeypatch.setattr(server, "get_client", lambda: fc)
+    h = asyncio.run(server._h_vm_health({"vm_id": "RESTID123"}, _identity_vmx_test))
+    assert h["running"] is False and h["ip"] == "192.168.1.5"       # poweredOff→False；ip 恒 vmrun
+
+
+def test_vm_health_rest_fallback_to_vmrun_on_error(monkeypatch):
+    fr, fc = _FakeVmRunProbe(), _FakeRestClient(fail=True)
+    monkeypatch.setattr(server, "get_vmrun", lambda: fr)
+    monkeypatch.setattr(server, "get_client", lambda: fc)
+    h = asyncio.run(server._h_vm_health({"vm_id": "RESTID123"}, _identity_vmx_test))
+    assert h["running"] is True                                     # 回退 vmrun：vmx 在运行清单里
+    assert h["ip"] == "192.168.1.5"
+    assert sorted(fr.calls) == ["check_tools_state", "get_guest_ip", "list_running"]
+
+
+def test_vm_health_vmx_form_unchanged(monkeypatch):
+    fr = _FakeVmRunProbe()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fr)
+    h = asyncio.run(server._h_vm_health({"vm_id": "D:/vms/rest-id.vmx"}, _identity_vmx_test))
+    assert sorted(fr.calls) == ["check_tools_state", "get_guest_ip", "list_running"]  # 直通形态零 REST

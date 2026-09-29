@@ -137,6 +137,12 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 
 ## 变更历史（按版本倒序；工具数/测试数等为各版本发布时点的史实，当前状态以本文其余章节与 [`note/release/`](note/release/) 为准）
 
+## 0.4.2 变更（通道剖析 + 生命周期剖析）
+
+- `vm_health` REST 快路径：REST vm_id 形态下 `running` 走 power_state 元数据（401 自动回退，字段语义不变）；`VMWARE_TOOLS=rest` 场景下 running 仍可诊断。真机 1.21x。
+- 新增基准：`bench_health_channels.py`（通道对照+回退验证）、`bench_lifecycle.py`（冷启动分解）。
+- 剖析结论：冷启动 ~900ms 中 mcp SDK import 占 756ms（硬依赖不可避）；`vmrest /ip` 底层同为 VIX 无收益（409 对关机 VM）；性能线封版依据见 [`note/report/perf/2026-09-29-health-rest-fastpath-0.4.2.md`](note/report/perf/2026-09-29-health-rest-fastpath-0.4.2.md)。
+
 ## 0.4.1 变更（工具面作用域）
 
 - 新增 `VMWARE_TOOLS`（rest/vmrun/vmcli/core 逗号组合，缺省全量）：按家族裁剪工具列表与调用面，vmrun 作用域 56 工具/48% 负载；core 诊断工具任何作用域保留，域外调用入口即拒。
@@ -188,6 +194,8 @@ python benchmark/bench_rest.py                     # REST 每请求连接 vs 共
 python benchmark/bench_composite.py                # vm_health/vm_resolve 内部并发（0.3.2）
 python benchmark/bench_output.py                   # 紧凑输出负载对比（0.3.2）
 python benchmark/bench_workflow.py                 # 工作流组合工具 vs 多连调用（0.4.0，需 VM）
+python benchmark/bench_health_channels.py          # vm_health 通道对照 + 回退验证（0.4.2，需凭据）
+python benchmark/bench_lifecycle.py                # 冷启动/生命周期剖析（0.4.2）
 python benchmark/verify_dispatch_equivalence.py check  # 分发行为黄金快照回归门（141 项）
 ```
 
