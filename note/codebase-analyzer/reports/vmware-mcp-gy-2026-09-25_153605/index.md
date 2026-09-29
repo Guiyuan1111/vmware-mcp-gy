@@ -1,3 +1,5 @@
+> **时效说明**：本报告为 2026-09-25 的代码快照（0.3.x 时代，130/137 工具口径）。0.4.0 新增工作流组合工具（vmrun_run_job/vmrun_read_file/vmrun_wait_file）、0.4.1 新增 VMWARE_TOOLS 工具面作用域与 protocol_conformance 协议门，当前状态以 README 与 note/release/ 为准。
+
 # vmware-mcp 代码分析报告
 
 **分析时间**：2026-09-25_153605

@@ -135,6 +135,8 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
 
+## 变更历史（按版本倒序；工具数/测试数等为各版本发布时点的史实，当前状态以本文其余章节与 [`note/release/`](note/release/) 为准）
+
 ## 0.4.1 变更（工具面作用域）
 
 - 新增 `VMWARE_TOOLS`（rest/vmrun/vmcli/core 逗号组合，缺省全量）：按家族裁剪工具列表与调用面，vmrun 作用域 56 工具/48% 负载；core 诊断工具任何作用域保留，域外调用入口即拒。
@@ -173,6 +175,7 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 pip install -e ".[dev]"
 pytest                              # 单元测试（无需 VMware）
 VMWARE_IT=1 pytest -m integration   # 集成测试（需真实 VMware 环境）
+python benchmark/protocol_conformance.py  # stdio 协议符合性门 9 项（无需 VMware）
 ```
 
 性能基准（`benchmark/`，详见 [`note/report/perf/`](note/report/perf/)）：
@@ -182,7 +185,10 @@ python benchmark/bench_list_tools.py               # tools/list 构建 vs 缓存
 python benchmark/bench_dispatch.py                 # 分发机制（+端到端开销）
 python benchmark/bench_subprocess.py               # 真实 vmrun 串行 vs 信号量并发 + 隔离校验
 python benchmark/bench_rest.py                     # REST 每请求连接 vs 共享池
-python benchmark/verify_dispatch_equivalence.py check  # 分发行为黄金快照回归门
+python benchmark/bench_composite.py                # vm_health/vm_resolve 内部并发（0.3.2）
+python benchmark/bench_output.py                   # 紧凑输出负载对比（0.3.2）
+python benchmark/bench_workflow.py                 # 工作流组合工具 vs 多连调用（0.4.0，需 VM）
+python benchmark/verify_dispatch_equivalence.py check  # 分发行为黄金快照回归门（141 项）
 ```
 
 ## 工具列表
@@ -239,8 +245,11 @@ python benchmark/verify_dispatch_equivalence.py check  # 分发行为黄金快�
 | `vmrun_temp_file` | 在客户机创建临时文件 |
 | `vmrun_copy_dir_to` | 递归复制目录树到客户机（include/exclude 后缀过滤） |
 | `vmrun_copy_dir_from` | 递归复制客户机目录树到宿主机 |
-| `vmrun_run` | 在客户机运行程序 |
-| `vmrun_script` | 在客户机运行脚本 |
+| `vmrun_run` | 在客户机运行程序（不捕获程序 stdout） |
+| `vmrun_script` | 在客户机运行脚本（script 为 guest 内文件路径；不捕获 stdout） |
+| `vmrun_run_job` | 一键作业：上传脚本文本→执行→回传 stdout+exit_code 并清理临时文件（合并三连调用） |
+| `vmrun_read_file` | 直读 guest 文本文件内容到对话 |
+| `vmrun_wait_file` | 轮询等待 guest 文件出现（收后台作业产物） |
 | `vmrun_ps` | 列出客户机进程 |
 | `vmrun_kill` | 终止客户机进程 |
 | `vmrun_shared_enable` | 启用共享文件夹 |
