@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-**137 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
+**140 个工具**，覆盖 VMware Workstation Pro 全部自动化能力：
 
 | 来源 | 工具数 | 描述 |
 |------|--------|------|
@@ -64,6 +64,21 @@ claude mcp add vmware-mcp \
 | `VMWARE_TLS_VERIFY` | 关 | 置 `1` 后 REST 连接校验 TLS 证书（vmrest 默认 http，无需开） |
 | `VMWARE_LOG_LEVEL` | `WARNING` | stderr 日志级别；`INFO` 起每次调用输出工具名/成败/耗时 |
 | `VMWARE_COMPACT_OUTPUT` | 关 | 置 `1` 后成功路径 JSON 紧凑输出（典型负载省 ~25% token）；默认缩进格式 |
+| `VMWARE_HOST_TEMP_DIR` | 系统临时目录 | run_job/read_file 宿主侧中转文件目录 |
+| `VMWARE_READ_FILE_KB` | `256` | `vmrun_read_file` 单次最大读取 KB，超出置 `truncated: true` |
+
+## 工作流组合工具（v0.4.0）
+
+基于 647 次真实会话调用记录的分析（详见 `note/report/perf/2026-09-29-workflow-composite-0.4.0.md`），把高频多连调用合并为单次调用，直接省模型回合：
+
+- **`vmrun_run_job`**：上传脚本文本 → 执行 → 回传 `stdout` + `exit_code`，并自动清理 guest 临时文件。合并 `copy_to + run + copy_from` 三连（3 次调用/3 回合 → 1 次/1 回合）。脚本经子 shell/例程隔离包装（用户 `exit` 不破坏收尾），输出以 `.part` 中转、完成后原子发布。长任务用 `no_wait: true` 启动后配合后两个工具收集。
+- **`vmrun_read_file`**：直接读取 guest 文本文件内容（合并 copy_from + 本地 Read）；二进制拒绝并指引 `vmrun_copy_from`；上限 `VMWARE_READ_FILE_KB`。
+- **`vmrun_wait_file`**：轮询等待 guest 文件出现（收 `no_wait` 作业产物）；凭据/Tools 类错误首次探测即报，不空耗超时。`timeout_s` 默认 25（ZCode 客户端 30s 掐断，长等待分次调用）。
+
+```json
+{"ok": true, "kind": "posix", "job_id": "03d37ddc", "script_guest_path": "/tmp/vmjob-03d37ddc.sh",
+ "output_guest_path": "/tmp/vmjob-03d37ddc.out", "exit_code": 0, "stdout": "hello-from-guest\n42"}
+```
 
 ## 安全护栏
 
@@ -104,6 +119,13 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 ### 0.2.0 破坏性变更
 
 - `vmrun_run` / `vmrun_script` 的 `args`：推荐传**字符串数组**（每项一个参数）；传字符串时不再按空格拆分，而是整体作为单个参数透传。原先依赖自动拆分的调用需改为数组。
+
+## 0.4.0 变更（工作流组合工具）
+
+- 新增 `vmrun_run_job` / `vmrun_read_file` / `vmrun_wait_file`：把真实会话中最高频的多连调用合并为单次（三连 3 回合→1 回合等），直接返回 stdout+exit_code；见上方「工作流组合工具」节。
+- 描述修正：`vmrun_run`/`vmrun_script` 明示不捕获 stdout；`vmrun_copy_dir_to/from` 加「多于 3 个文件优先用我」触发条件。
+- 新 env：`VMWARE_HOST_TEMP_DIR`、`VMWARE_READ_FILE_KB`。
+- 依据：647 次历史调用记录分析 + RHEL-10 真机三轮迭代验证（原子发布/exit 隔离/符号链接检测）；基准 `benchmark/bench_workflow.py`，报告 [`note/report/perf/2026-09-29-workflow-composite-0.4.0.md`](note/report/perf/2026-09-29-workflow-composite-0.4.0.md)。
 
 ## 0.3.2 变更（性能第二期）
 
