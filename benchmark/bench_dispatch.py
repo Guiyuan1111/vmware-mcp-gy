@@ -75,11 +75,12 @@ async def _identity_vmx(vm_id):
     return vm_id
 
 
-# 12 个自定义逻辑分支：函数体与重构前逐字相同（成本抵消），纯分发口径下两侧都只测查表本身
+# 15 个自定义逻辑分支：函数体与重构前逐字相同（成本抵消），纯分发口径下两侧都只测查表本身
 SPECIALS = {
     "set_vm_encryption_password", "vm_resolve", "vm_health", "vm_log_tail", "screenshot_ocr",
     "vm_list", "vm_create", "vm_update", "vm_nic_create", "vm_folder_create",
     "network_create", "network_portforward_set",
+    "vmrun_run_job", "vmrun_read_file", "vmrun_wait_file",
 }
 
 

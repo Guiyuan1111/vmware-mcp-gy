@@ -69,7 +69,7 @@ async def main():
     speedup = o["path_us_median"] / n["path_us_median"]
 
     print(f"# bench_list_tools  N={N}")
-    print(f"payload: {payload_kb:.1f} KB / 137 tools（单次序列化体积，两种实现相同）")
+    print(f"payload: {payload_kb:.1f} KB / 140 tools（单次序列化体积，两种实现相同）")
     print(f"{'实现':<28}{'中位(us)':>10}{'P95(us)':>10}{'均值(us)':>10}")
     print(f"{'old 每次重建(v0.3.0)':<26}{o['path_us_median']:>10}{o['path_us_p95']:>10}{o['path_us_mean']:>10}")
     print(f"{'new 缓存命中(0.3.1)':<27}{n['path_us_median']:>10}{n['path_us_p95']:>10}{n['path_us_mean']:>10}")

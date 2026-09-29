@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """verify_dispatch_equivalence —— call_tool 分发行为黄金快照校验
 
-对全部 137 个工具（+1 个未知工具名）以 schema 生成的参数驱动 call_tool，
+对全部 140 个工具（+1 个未知工具名）以 schema 生成的参数驱动 call_tool，
 client/vmrun/vmcli 全部替换为记录桩（记录方法名与实参），产出
 「方法调用序列 + 返回文本」快照。路由表重构前后各跑一次，逐字节 diff，
 证明重构零行为变化（安全性/稳定性/兼容性红线）。
@@ -12,11 +12,16 @@ client/vmrun/vmcli 全部替换为记录桩（记录方法名与实参），产�
 """
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from vmware_mcp import server  # noqa: E402
+
+# 组合工具含随机 job_id 与宿主临时目录 → 快照要求确定性，固定之
+os.environ["VMWARE_HOST_TEMP_DIR"] = str(Path(__file__).resolve().parent / "_bench_tmp")
+server._new_job_id = lambda: "deadbeef"
 
 GOLDEN = Path(__file__).resolve().parent / "goldens_dispatch.json"
 
@@ -24,11 +29,19 @@ GOLDEN = Path(__file__).resolve().parent / "goldens_dispatch.json"
 FIRST_ENUM = True
 
 
-def _fake_return(method):
+def _fake_return(method, args=()):
     if method == "list_vms":
         return []  # 唯一被迭代的集合返回值
     if method == "list_running":
         return "Total running VMs: 0"  # vm_health 对返回值调 .lower()，须为字符串
+    if method == "copy_from_guest":
+        # vmrun_run_job / vmrun_read_file 成功路径需要宿主侧真的出现回拷文件
+        try:
+            with open(args[2], "wb") as f:
+                f.write(b"hello from guest\n__JOB_RC=0\n")
+        except OSError:
+            pass
+        return "Copy: file transferred"
     return {"fake": method}
 
 
@@ -38,9 +51,9 @@ class _Recorder:
         self.calls = []
 
     def __getattr__(self, method):
-        async def m(*args):
-            self.calls.append([method, _jsonable(args)])
-            return _fake_return(method)
+        async def m(*args, **kw):
+            self.calls.append([method, _jsonable(args), _jsonable(kw)])
+            return _fake_return(method, args)
         return m
 
 
@@ -61,6 +74,8 @@ def gen_args(schema):
             out[key] = spec["enum"][0]
         elif t == "integer":
             out[key] = 1
+        elif t == "number":
+            out[key] = 1.5
         elif t == "boolean":
             out[key] = False
         elif key == "vm_id":

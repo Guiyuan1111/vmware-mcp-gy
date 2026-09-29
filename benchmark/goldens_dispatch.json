@@ -21,7 +21,8 @@
      "chipset_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -43,7 +44,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -65,7 +67,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -87,7 +90,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -107,7 +111,8 @@
      "config_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -131,7 +136,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -159,7 +165,8 @@
       "bench-str",
       1,
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -186,7 +193,8 @@
       1,
       1,
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -206,7 +214,8 @@
      "disk_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -229,7 +238,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -249,7 +259,8 @@
      "ethernet_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -273,7 +284,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -297,7 +309,8 @@
       "D:/vms/bench.vmx",
       1,
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -321,7 +334,8 @@
       "D:/vms/bench.vmx",
       1,
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -345,7 +359,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -369,7 +384,8 @@
       "D:/vms/bench.vmx",
       1,
       "bridged"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -397,7 +413,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -425,7 +442,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -449,7 +467,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -476,7 +495,8 @@
       1,
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -502,7 +522,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -528,7 +549,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -552,7 +574,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -578,7 +601,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -604,7 +628,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -632,7 +657,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -652,7 +678,8 @@
      "hgfs_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -676,7 +703,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -700,7 +728,8 @@
       "D:/vms/bench.vmx",
       1,
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -724,7 +753,8 @@
       "D:/vms/bench.vmx",
       1,
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -748,7 +778,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -772,7 +803,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -792,7 +824,8 @@
      "mks_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -814,7 +847,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -836,7 +870,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -859,7 +894,8 @@
        "name": "bench-str",
        "type": "bridged"
       }
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -875,7 +911,8 @@
    "c": [
     [
      "list_networks",
-     []
+     [],
+     {}
     ]
    ],
    "l": [],
@@ -900,7 +937,8 @@
       "bench-str",
       "bench-str",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -920,7 +958,8 @@
      "get_portforwards",
      [
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -950,7 +989,8 @@
        "guestIp": "bench-str",
        "guestPort": 1
       }
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -974,7 +1014,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -994,7 +1035,8 @@
      "nvme_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1018,7 +1060,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1038,7 +1081,8 @@
      "power_pause",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1058,7 +1102,8 @@
      "power_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1078,7 +1123,8 @@
      "power_reset",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1098,7 +1144,8 @@
      "power_start",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1118,7 +1165,8 @@
      "power_stop",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1138,7 +1186,8 @@
      "power_suspend",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1158,7 +1207,8 @@
      "power_unpause",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1181,7 +1231,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1201,7 +1252,8 @@
      "sata_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1225,7 +1277,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1248,12 +1301,13 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
   "result": [
-   "{\n  \"ok\": false,\n  \"image\": \"bench-str\",\n  \"error\": \"LoadImageError: bench-str does not exist.\",\n  \"hint\": \"图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）\"\n}"
+   "{\n  \"ok\": false,\n  \"image\": \"bench-str\",\n  \"error\": \"LoadImageError: cannot identify image file bench-str\",\n  \"hint\": \"图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）\"\n}"
   ]
  },
  "serial_purge": {
@@ -1270,7 +1324,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1290,7 +1345,8 @@
      "serial_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1314,7 +1370,8 @@
       "D:/vms/bench.vmx",
       1,
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1354,7 +1411,8 @@
       "bench-str",
       "bench-str",
       "linked"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1379,7 +1437,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1399,7 +1458,8 @@
      "snapshot_list",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1422,7 +1482,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1444,7 +1505,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1468,7 +1530,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1492,7 +1555,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1512,7 +1576,8 @@
      "tools_install",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1532,7 +1597,8 @@
      "tools_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1552,7 +1618,8 @@
      "tools_upgrade",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -1573,7 +1640,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1594,7 +1662,8 @@
      "delete_vm",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1622,7 +1691,8 @@
        "folder_id": "bench-str",
        "host_path": "bench-str"
       }
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1645,7 +1715,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1665,7 +1736,8 @@
      "list_shared_folders",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1685,7 +1757,8 @@
      "get_vm",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1705,19 +1778,22 @@
    "r": [
     [
      "list_running",
-     []
+     [],
+     {}
     ],
     [
      "check_tools_state",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ],
     [
      "get_guest_ip",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -1735,7 +1811,8 @@
      "get_vm_ip",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1751,7 +1828,8 @@
    "c": [
     [
      "list_vms",
-     []
+     [],
+     {}
     ]
    ],
    "l": [],
@@ -1789,7 +1867,8 @@
       {
        "type": "bridged"
       }
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1812,7 +1891,8 @@
      [
       "D:/vms/bench.vmx",
       1
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1832,7 +1912,8 @@
      "list_nics",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1852,7 +1933,8 @@
      "get_power_state",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1875,7 +1957,8 @@
      [
       "D:/vms/bench.vmx",
       "on"
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1893,7 +1976,8 @@
    "c": [
     [
      "list_vms",
-     []
+     [],
+     {}
     ]
    ],
    "l": [],
@@ -1919,7 +2003,8 @@
        "cpu": 1,
        "memory": 1
       }
-     ]
+     ],
+     {}
     ]
    ],
    "l": [],
@@ -1950,7 +2035,8 @@
       "full",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -1983,7 +2069,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2016,7 +2103,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2045,12 +2133,13 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
   "result": [
-   "{\n  \"fake\": \"copy_from_guest\"\n}"
+   "Copy: file transferred"
   ]
  },
  "vmrun_copy_to": {
@@ -2074,7 +2163,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2096,7 +2186,8 @@
      "delete_vm",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2119,7 +2210,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2142,7 +2234,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2169,7 +2262,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2196,7 +2290,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2219,7 +2314,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2235,7 +2331,8 @@
    "r": [
     [
      "list_host_networks",
-     []
+     [],
+     {}
     ]
    ]
   },
@@ -2258,7 +2355,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2286,7 +2384,8 @@
       1,
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2302,7 +2401,8 @@
    "r": [
     [
      "list_running",
-     []
+     [],
+     {}
     ]
    ]
   },
@@ -2329,7 +2429,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2356,7 +2457,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2377,7 +2479,8 @@
      "pause",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2402,7 +2505,8 @@
       "bench-str",
       "bench-str",
       1
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2422,7 +2526,8 @@
      "list_port_forwardings",
      [
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2452,7 +2557,8 @@
       "bench-str",
       1,
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2477,12 +2583,43 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
   "result": [
    "{\n  \"fake\": \"list_processes\"\n}"
+  ]
+ },
+ "vmrun_read_file": {
+  "args": {
+   "enc_pass": "bench-str",
+   "password": "bench-str",
+   "path": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_from_guest",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str",
+      "C:\\Users\\Administrator\\Desktop\\zcode\\mcp开发\\VMware\\vmware-mcp-gy\\benchmark\\_bench_tmp\\vmread-deadbeef.bin"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"ok\": true,\n  \"path\": \"bench-str\",\n  \"bytes\": 28,\n  \"truncated\": false,\n  \"content\": \"hello from guest\\n__JOB_RC=0\\n\"\n}"
   ]
  },
  "vmrun_rename": {
@@ -2506,7 +2643,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2530,7 +2668,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2558,7 +2697,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2586,7 +2726,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2620,12 +2761,94 @@
       false,
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
   "result": [
    "{\n  \"fake\": \"run_program\"\n}"
+  ]
+ },
+ "vmrun_run_job": {
+  "args": {
+   "enc_pass": "bench-str",
+   "guest_dir": "bench-str",
+   "interpreter": "bash",
+   "no_wait": false,
+   "password": "bench-str",
+   "script": "bench-str",
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "copy_to_guest",
+     [
+      "D:/vms/bench.vmx",
+      "C:\\Users\\Administrator\\Desktop\\zcode\\mcp开发\\VMware\\vmware-mcp-gy\\benchmark\\_bench_tmp\\vmjob-deadbeef.sh",
+      "bench-str/vmjob-deadbeef.sh"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ],
+    [
+     "run_program",
+     [
+      "D:/vms/bench.vmx",
+      "/bin/bash",
+      [
+       "bench-str/vmjob-deadbeef.sh"
+      ]
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ],
+    [
+     "copy_from_guest",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str/vmjob-deadbeef.out",
+      "C:\\Users\\Administrator\\Desktop\\zcode\\mcp开发\\VMware\\vmware-mcp-gy\\benchmark\\_bench_tmp\\vmjob-deadbeef.out"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ],
+    [
+     "delete_file",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str/vmjob-deadbeef.sh"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ],
+    [
+     "delete_file",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str/vmjob-deadbeef.out"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"ok\": true,\n  \"kind\": \"posix\",\n  \"job_id\": \"deadbeef\",\n  \"no_wait\": false,\n  \"script_guest_path\": \"bench-str/vmjob-deadbeef.sh\",\n  \"output_guest_path\": \"bench-str/vmjob-deadbeef.out\",\n  \"exit_code\": 0,\n  \"stdout_bytes\": 28,\n  \"stdout\": \"hello from guest\"\n}"
   ]
  },
  "vmrun_screenshot": {
@@ -2643,7 +2866,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2676,7 +2900,8 @@
       false,
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2701,7 +2926,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2722,7 +2948,8 @@
      "disable_shared_folders",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2743,7 +2970,8 @@
      "enable_shared_folders",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2767,7 +2995,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2794,7 +3023,8 @@
       "bench-str",
       "bench-str",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2820,7 +3050,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2843,7 +3074,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2867,7 +3099,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2890,7 +3123,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2913,7 +3147,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2937,7 +3172,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2961,7 +3197,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -2986,7 +3223,8 @@
       "D:/vms/bench.vmx",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3007,7 +3245,8 @@
      "install_tools",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3028,7 +3267,8 @@
      "check_tools_state",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3049,7 +3289,8 @@
      "unpause",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3070,7 +3311,8 @@
      "upgrade_vm",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3099,7 +3341,8 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
@@ -3130,12 +3373,44 @@
       "bench-str",
       "bench-str",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ]
   },
   "result": [
    "{\n  \"fake\": \"write_variable\"\n}"
+  ]
+ },
+ "vmrun_wait_file": {
+  "args": {
+   "enc_pass": "bench-str",
+   "interval_s": 1.5,
+   "password": "bench-str",
+   "path": "bench-str",
+   "timeout_s": 1.5,
+   "user": "bench-str",
+   "vm_id": "D:/vms/bench.vmx"
+  },
+  "calls": {
+   "c": [],
+   "l": [],
+   "r": [
+    [
+     "file_exists",
+     [
+      "D:/vms/bench.vmx",
+      "bench-str"
+     ],
+     {
+      "password": "bench-str",
+      "user": "bench-str"
+     }
+    ]
+   ]
+  },
+  "result": [
+   "{\n  \"ok\": true,\n  \"exists\": true,\n  \"path\": \"bench-str\",\n  \"waited_ms\": 0,\n  \"polls\": 1\n}"
   ]
  },
  "vprobes_enable": {
@@ -3151,7 +3426,8 @@
      [
       "D:/vms/bench.vmx",
       false
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -3173,7 +3449,8 @@
      [
       "D:/vms/bench.vmx",
       "bench-str"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -3193,7 +3470,8 @@
      "vprobes_query",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []
@@ -3213,7 +3491,8 @@
      "vprobes_reset",
      [
       "D:/vms/bench.vmx"
-     ]
+     ],
+     {}
     ]
    ],
    "r": []

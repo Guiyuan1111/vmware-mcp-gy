@@ -668,3 +668,174 @@ def test_compact_output_on(monkeypatch):
     pretty = asyncio.run(server.call_tool("vm_list", {}))[0].text
     assert "\n" not in compact and ": " not in compact
     assert json.loads(compact) == json.loads(pretty)  # 值完全一致，仅序列化形式不同
+
+
+# ---------- 轮8：工作流组合工具（run_job / read_file / wait_file） ----------
+
+class _FakeVMRunJob:
+    """记录调用的桩；copy_from_guest 在宿主侧落真实文件，走通 run_job/read_file 成功路径。"""
+
+    def __init__(self, out_bytes=b"line1\nline2\n__JOB_RC=3\n", exists=True, exists_error="Error: The file was not found"):
+        self.calls = []
+        self.out_bytes = out_bytes
+        self.exists = exists
+        self.exists_error = exists_error
+
+    async def copy_to_guest(self, vmx, host, guest, user="", password=""):
+        self.calls.append(("copy_to_guest", host, guest))
+        with open(host, "rb") as f:
+            self.uploaded = f.read()
+
+    async def run_program(self, vmx, program, args, no_wait=False, active_window=False, interactive=False, user="", password=""):
+        self.calls.append(("run_program", program, tuple(args), no_wait))
+
+    async def copy_from_guest(self, vmx, guest, host, user="", password=""):
+        self.calls.append(("copy_from_guest", guest, host))
+        with open(host, "wb") as f:
+            f.write(self.out_bytes)
+
+    async def delete_file(self, vmx, path, user="", password=""):
+        self.calls.append(("delete_file", path))
+
+    async def file_exists(self, vmx, path, user="", password=""):
+        self.calls.append(("file_exists", path))
+        if self.exists:
+            return "1"
+        raise ToolError(self.exists_error)
+
+
+def test_run_job_success_parses_stdout_and_exit_code(monkeypatch, tmp_path):
+    fake = _FakeVMRunJob()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    monkeypatch.setattr(server, "_new_job_id", lambda: "job001")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    r = asyncio.run(server._h_vmrun_run_job({"vm_id": "D:/vms/a.vmx", "script": "echo hi"}, _identity_vmx_test))
+    assert r["ok"] is True and r["exit_code"] == 3 and r["stdout"] == "line1\nline2"
+    assert r["script_guest_path"] == "/tmp/vmjob-job001.sh" and r["output_guest_path"] == "/tmp/vmjob-job001.out"
+    # 调用序列：上传→执行→回拷→清理×2
+    assert [c[0] for c in fake.calls] == ["copy_to_guest", "run_program", "copy_from_guest", "delete_file", "delete_file"]
+    assert fake.calls[1] == ("run_program", "/bin/bash", ("/tmp/vmjob-job001.sh",), False)
+    # 上传的是包装后脚本（重定向 + 退出码标记），不是裸脚本文本
+    assert b'"> "/tmp/vmjob-job001.out" 2>&1' in fake.uploaded.replace(b'"', b'"') or b"/tmp/vmjob-job001.out" in fake.uploaded
+    assert b"__JOB_RC=$?" in fake.uploaded
+    assert b"echo hi" in fake.uploaded
+    # 宿主临时文件已清理
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_run_job_no_wait_skips_collect(monkeypatch, tmp_path):
+    fake = _FakeVMRunJob()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    monkeypatch.setattr(server, "_new_job_id", lambda: "job002")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    r = asyncio.run(server._h_vmrun_run_job({"vm_id": "D:/vms/a.vmx", "script": "longjob", "no_wait": True}, _identity_vmx_test))
+    assert r["no_wait"] is True and "vmrun_wait_file" in r["note"]
+    assert [c[0] for c in fake.calls] == ["copy_to_guest", "run_program"]
+    assert fake.calls[1][3] is True  # run_program 带 -noWait
+    # 宿主临时文件已清理
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_run_job_cmd_plan(monkeypatch, tmp_path):
+    fake = _FakeVMRunJob()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    monkeypatch.setattr(server, "_new_job_id", lambda: "job003")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    r = asyncio.run(server._h_vmrun_run_job({"vm_id": "D:/vms/a.vmx", "script": "echo hi", "interpreter": "cmd"}, _identity_vmx_test))
+    assert r["kind"] == "cmd"
+    assert fake.calls[1] == ("run_program", "cmd.exe", ("/c", "C:" + chr(92) + "Windows" + chr(92) + "Temp" + chr(92) + "vmjob-job003.cmd"), False)
+    assert b"%errorlevel%" in fake.uploaded and b"\r\n" in fake.uploaded
+
+
+def test_run_job_unsupported_interpreter_fails_fast(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob())
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    try:
+        asyncio.run(server._h_vmrun_run_job({"vm_id": "D:/vms/a.vmx", "script": "x", "interpreter": "python"}, _identity_vmx_test))
+        raised = False
+    except ToolError as e:
+        raised = True
+        assert "vmrun_run" in e.hint
+    assert raised
+
+
+def test_run_job_run_timeout_preserves_guest_paths(monkeypatch, tmp_path):
+    class _TimeoutFake(_FakeVMRunJob):
+        async def run_program(self, vmx, program, args, no_wait=False, active_window=False, interactive=False, user="", password=""):
+            if not no_wait:
+                raise ToolError("vmrun timed out")
+            await super().run_program(vmx, program, args, no_wait, active_window, interactive, user, password)
+
+    monkeypatch.setattr(server, "get_vmrun", lambda: _TimeoutFake())
+    monkeypatch.setattr(server, "_new_job_id", lambda: "job004")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    try:
+        asyncio.run(server._h_vmrun_run_job({"vm_id": "D:/vms/a.vmx", "script": "x"}, _identity_vmx_test))
+        raised = False
+    except ToolError as e:
+        raised = True
+        assert "/tmp/vmjob-job004.out" in e.hint and "vmrun_wait_file" in e.hint
+    assert raised
+    assert list(tmp_path.iterdir()) == []  # 宿主临时文件仍被清理
+
+
+def test_read_file_returns_content(monkeypatch, tmp_path):
+    fake = _FakeVMRunJob()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    monkeypatch.setattr(server, "_new_job_id", lambda: "read01")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    r = asyncio.run(server._h_vmrun_read_file({"vm_id": "D:/vms/a.vmx", "path": "/tmp/out.txt"}, _identity_vmx_test))
+    assert r["ok"] is True and r["bytes"] == 23 and r["truncated"] is False
+    assert r["content"] == "line1\nline2\n__JOB_RC=3\n"
+    assert list(tmp_path.iterdir()) == []  # 中转文件即用即删
+
+
+def test_read_file_binary_rejected(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob(out_bytes=b"\x00\x01\x02binary"))
+    monkeypatch.setattr(server, "_new_job_id", lambda: "read02")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    try:
+        asyncio.run(server._h_vmrun_read_file({"vm_id": "D:/vms/a.vmx", "path": "/tmp/a.bin"}, _identity_vmx_test))
+        raised = False
+    except ToolError as e:
+        raised = True
+        assert "vmrun_copy_from" in e.hint
+    assert raised
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_read_file_truncation_flag(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob(out_bytes=b"x" * 2000))
+    monkeypatch.setattr(server, "_new_job_id", lambda: "read03")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    monkeypatch.setenv("VMWARE_READ_FILE_KB", "1")
+    r = asyncio.run(server._h_vmrun_read_file({"vm_id": "D:/vms/a.vmx", "path": "/tmp/big.txt"}, _identity_vmx_test))
+    assert r["bytes"] == 2000 and r["truncated"] is True and len(r["content"]) == 1024
+
+
+def test_wait_file_exists_first_poll(monkeypatch):
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob())
+    r = asyncio.run(server._h_vmrun_wait_file({"vm_id": "D:/vms/a.vmx", "path": "/tmp/x.out"}, _identity_vmx_test))
+    assert r == {"ok": True, "exists": True, "path": "/tmp/x.out", "waited_ms": 0, "polls": 1}
+
+
+def test_wait_file_timeout_returns_structured(monkeypatch):
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob(exists=False))
+    t0 = time.monotonic()
+    r = asyncio.run(server._h_vmrun_wait_file(
+        {"vm_id": "D:/vms/a.vmx", "path": "/tmp/x.out", "timeout_s": 0.2, "interval_s": 0.05}, _identity_vmx_test))
+    assert r["ok"] is False and r["exists"] is False and r["polls"] >= 2
+    assert "hint" in r and time.monotonic() - t0 < 2
+
+
+def test_wait_file_infra_error_fails_fast(monkeypatch):
+    # 凭据类错误不会因等待好转：首次探测即抛，不空耗 timeout
+    monkeypatch.setattr(server, "get_vmrun", lambda: _FakeVMRunJob(exists=False, exists_error="password is required for this VM"))
+    try:
+        asyncio.run(server._h_vmrun_wait_file(
+            {"vm_id": "D:/vms/a.vmx", "path": "/tmp/x.out", "timeout_s": 5}, _identity_vmx_test))
+        raised = False
+    except ToolError as e:
+        raised = True
+        assert "vm_health" in e.hint
+    assert raised

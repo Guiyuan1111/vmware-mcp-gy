@@ -5,7 +5,9 @@ import glob
 import json
 import logging
 import os
+import secrets
 import sys
+import tempfile
 import time
 
 import httpx
@@ -15,7 +17,7 @@ from mcp.types import Tool, TextContent, ToolAnnotations
 
 from .client import VMwareClient
 from .errors import ToolError, make_hint
-from .runtime import enc_password, env_int
+from .runtime import decode_output, enc_password, env_int
 from .vmcli import VMCli
 from .vmrun import VMRun
 
@@ -53,6 +55,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset({
     "ethernet_query", "hgfs_query", "serial_query", "sata_query", "nvme_query",
     "vprobes_query",
     "vm_resolve", "vm_health", "vm_log_tail",
+    "vmrun_read_file", "vmrun_wait_file",
 })
 
 
@@ -238,7 +241,7 @@ _TOOLS_CACHE: list[Tool] | None = None
 
 
 def _build_tools() -> list[Tool]:
-    """构建全部 137 个工具定义（含 enc_pass/vm_id/confirm 注入与 annotations）。
+    """构建全部 140 个工具定义（含 enc_pass/vm_id/confirm 注入与 annotations）。
     结果进程内缓存：工具集在运行期不变，tools/list 每次重建纯属浪费。"""
     tools = [
         # ==================== SERVER ====================
@@ -300,13 +303,16 @@ def _build_tools() -> list[Tool]:
         T("vmrun_rm", "vmrun｜guest 内删文件。前提：运行+Tools+凭据。副作用：改 guest 文件系统", {"vm_id": {"type": "string"}, "path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "path"]),
         T("vmrun_rename", "vmrun｜guest 内重命名。前提：运行+Tools+凭据。副作用：改 guest 文件系统", {"vm_id": {"type": "string"}, "old_path": {"type": "string"}, "new_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "old_path", "new_path"]),
         T("vmrun_copy_to", "vmrun｜单文件 宿主→guest。前提：运行+Tools+凭据。整目录用 vmrun_copy_dir_to", {"vm_id": {"type": "string"}, "host_path": {"type": "string"}, "guest_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "host_path", "guest_path"]),
-        T("vmrun_copy_from", "vmrun｜单文件 guest→宿主。前提：运行+Tools+凭据。整目录用 vmrun_copy_dir_from", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
+        T("vmrun_copy_from", "vmrun｜单文件 guest→宿主。只要文本内容时改用 vmrun_read_file（一次调用直达对话）。前提：运行+Tools+凭据。整目录用 vmrun_copy_dir_from", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
+        T("vmrun_read_file", "vmrun｜直读 guest 文本文件内容到对话（合并 copy_from+本地 Read 为一次调用）。二进制/超大文件用 vmrun_copy_from。只读（宿主临时中转文件即用即删）。前提：运行+Tools+凭据", {"vm_id": {"type": "string"}, "path": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "path"]),
         T("vmrun_temp_file", "vmrun｜在 guest 内建临时文件。前提：运行+Tools+凭据。副作用：guest 文件系统", {"vm_id": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id"]),
-        T("vmrun_copy_dir_to", "vmrun｜递归复制宿主目录树→guest（include/exclude 传逗号分隔后缀如 \".txt,.log\"；自动逐级建父目录）。前提：运行+Tools+凭据。副作用：guest 文件系统", {"vm_id": {"type": "string"}, "host_path": {"type": "string"}, "guest_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "host_path", "guest_path"]),
-        T("vmrun_copy_dir_from", "vmrun｜递归复制 guest 目录树→宿主（基于 vmrun ls 容错解析，解析失败行计入 skipped）。前提：运行+Tools+凭据。副作用：宿主文件系统", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
+        T("vmrun_copy_dir_to", "vmrun｜递归复制宿主目录树→guest（多于 3 个文件时优先用我，一次调用替代逐文件 copy_to 循环；include/exclude 传逗号分隔后缀如 \".txt,.log\"；自动逐级建父目录）。前提：运行+Tools+凭据。副作用：guest 文件系统", {"vm_id": {"type": "string"}, "host_path": {"type": "string"}, "guest_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "host_path", "guest_path"]),
+        T("vmrun_copy_dir_from", "vmrun｜递归复制 guest 目录树→宿主（多于 3 个文件时优先用我，一次调用替代逐文件 copy_from 循环；基于 vmrun ls 容错解析，解析失败行计入 skipped）。前提：运行+Tools+凭据。副作用：宿主文件系统", {"vm_id": {"type": "string"}, "guest_path": {"type": "string"}, "host_path": {"type": "string"}, "include": {"type": "string"}, "exclude": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "guest_path", "host_path"]),
         # Guest Process
-        T("vmrun_run", "vmrun｜guest 内执行程序。args 传数组（每项一个参数，推荐）或整串（作为单个参数透传，不再按空格拆分）。前提：运行+Tools+凭据。副作用：guest 内进程", {"vm_id": {"type": "string"}, "program": {"type": "string"}, "args": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]}, "no_wait": {"type": "boolean"}, "interactive": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "program"]),
-        T("vmrun_script", "vmrun｜guest 内执行脚本（interpreter 如 cmd.exe / bash，script 为脚本文件路径）。前提：运行+Tools+凭据。副作用：guest 内进程", {"vm_id": {"type": "string"}, "interpreter": {"type": "string"}, "script": {"type": "string"}, "no_wait": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "interpreter", "script"]),
+        T("vmrun_run", "vmrun｜guest 内执行程序。args 传数组（每项一个参数，推荐）或整串（作为单个参数透传，不再按空格拆分）。注意：不捕获程序 stdout（仅返回 vmrun 自身状态）；需要程序输出/退出码改用 vmrun_run_job。前提：运行+Tools+凭据。副作用：guest 内进程", {"vm_id": {"type": "string"}, "program": {"type": "string"}, "args": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]}, "no_wait": {"type": "boolean"}, "interactive": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "program"]),
+        T("vmrun_script", "vmrun｜guest 内执行脚本。script 是 guest 内脚本文件路径（不是脚本文本；内联脚本文本用 vmrun_run_job）。注意：不捕获 stdout；需要输出/退出码改用 vmrun_run_job。前提：运行+Tools+凭据。副作用：guest 内进程", {"vm_id": {"type": "string"}, "interpreter": {"type": "string"}, "script": {"type": "string"}, "no_wait": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "interpreter", "script"]),
+        T("vmrun_run_job", "vmrun｜guest 一键作业：上传脚本文本→执行→回传 stdout+exit_code 并清理 guest 临时文件（合并 copy_to+run+copy_from 三连为一次调用，省 2 个模型回合）。interpreter 支持 bash/sh 与 cmd/cmd.exe；guest_dir 为临时目录（POSIX 默认 /tmp，Windows 默认 C:\\Windows\\Temp）。长任务 no_wait=true 只启动不收集，之后 vmrun_wait_file+vmrun_read_file 收结果。前提：运行+Tools+凭据。副作用：guest 内进程与临时文件", {"vm_id": {"type": "string"}, "script": {"type": "string"}, "interpreter": {"type": "string", "enum": ["bash", "sh", "cmd", "cmd.exe"]}, "guest_dir": {"type": "string"}, "no_wait": {"type": "boolean"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "script"]),
+        T("vmrun_wait_file", "vmrun｜轮询等待 guest 文件出现（收 no_wait 作业产物）。timeout_s 默认 25、上限 600（ZCode 客户端 30s 掐断调用，长等待请分次调用）。只读。前提：运行+Tools+凭据", {"vm_id": {"type": "string"}, "path": {"type": "string"}, "timeout_s": {"type": "number"}, "interval_s": {"type": "number"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "path"]),
         T("vmrun_ps", "vmrun｜列 guest 进程。前提：运行+Tools+凭据。只读", {"vm_id": {"type": "string"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id"]),
         T("vmrun_kill", "vmrun｜杀 guest 进程（pid 可由 vmrun_ps 获得）。前提：运行+Tools+凭据。副作用：终止 guest 进程", {"vm_id": {"type": "string"}, "pid": {"type": "integer"}, "user": {"type": "string"}, "password": {"type": "string"}}, ["vm_id", "pid"]),
         # Shared Folders (vmrun)
@@ -603,6 +609,179 @@ async def _h_network_portforward_set(a, vmx):
     return await get_client().update_portforward(a["vmnet"], a["protocol"], a["port"], {"guestIp": a["guest_ip"], "guestPort": a["guest_port"]})
 
 
+# ---- 工作流组合工具：合并真实会话中的高频多连调用（copy_to→run→copy_from 占 647 次调用中的 68 圈）----
+
+_JOB_RC_MARK = "__JOB_RC="
+_POSIX_INTERPRETERS = {"bash": "/bin/bash", "sh": "/bin/sh"}
+_CMD_INTERPRETERS = {"cmd", "cmd.exe"}
+
+
+def _new_job_id() -> str:
+    return secrets.token_hex(4)
+
+
+def _job_host_temp(name: str) -> str:
+    d = os.getenv("VMWARE_HOST_TEMP_DIR", "").strip() or tempfile.gettempdir()
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, name)
+
+
+def _job_plan(interpreter: str, job_id: str, guest_dir: str) -> dict:
+    """interpreter → 执行计划：guest 内脚本/输出路径、run 参数、脚本包装函数、宿主临时文件名。
+    输出捕获原理：VIX 不回收程序 stdout，脚本被包装成把 stdout/stderr 重定向到 guest 内
+    输出文件并在末尾追加退出码标记，服务端回拷后解析。"""
+    interp = (interpreter or "bash").strip().lower()
+    if interp.startswith("./"):
+        interp = interp[2:]
+    if interp in _POSIX_INTERPRETERS:
+        base = (guest_dir or "/tmp").rstrip("/") or "/tmp"
+        script, out = f"{base}/vmjob-{job_id}.sh", f"{base}/vmjob-{job_id}.out"
+
+        def wrap(body):
+            return ('{\n' + body.rstrip('\n') + f'\n}} > "{out}" 2>&1\n'
+                    f'echo {_JOB_RC_MARK}$? >> "{out}"\n')
+
+        return {"kind": "posix", "program": _POSIX_INTERPRETERS[interp], "run_args": [script],
+                "script": script, "out": out, "wrap": wrap,
+                "host_script": f"vmjob-{job_id}.sh", "host_out": f"vmjob-{job_id}.out",
+                "enc": "utf-8", "newline": "\n"}
+    if interp in _CMD_INTERPRETERS:
+        base = (guest_dir or "C:/Windows/Temp").replace("/", "\\").rstrip("\\") or "C:\\Windows\\Temp"
+        script, out = f"{base}\\vmjob-{job_id}.cmd", f"{base}\\vmjob-{job_id}.out"
+
+        def wrap(body):
+            return ('(\r\n' + body.rstrip('\r\n') + f'\r\n) > "{out}" 2>&1\r\n'
+                    f'echo {_JOB_RC_MARK}%errorlevel%>>"{out}"\r\n')
+
+        return {"kind": "cmd", "program": "cmd.exe", "run_args": ["/c", script],
+                "script": script, "out": out, "wrap": wrap,
+                "host_script": f"vmjob-{job_id}.cmd", "host_out": f"vmjob-{job_id}.out",
+                "enc": "mbcs", "newline": "\r\n"}
+    raise ToolError(
+        f"unsupported interpreter: {interpreter}",
+        tool="vmrun_run_job",
+        hint="支持 bash/sh（POSIX）与 cmd/cmd.exe（Windows）；自带解释器路径的场景直接用 vmrun_run",
+    )
+
+
+async def _h_vmrun_run_job(a, vmx):
+    vmrun = get_vmrun()
+    path = await vmx(a["vm_id"])
+    user, password = a.get("user", ""), a.get("password", "")
+    job_id = _new_job_id()
+    plan = _job_plan(a.get("interpreter", "bash"), job_id, a.get("guest_dir", ""))
+    host_script = _job_host_temp(plan["host_script"])
+    host_out = _job_host_temp(plan["host_out"])
+    no_wait = bool(a.get("no_wait"))
+    result = {
+        "ok": True, "kind": plan["kind"], "job_id": job_id, "no_wait": no_wait,
+        "script_guest_path": plan["script"], "output_guest_path": plan["out"],
+        "exit_code": None,
+    }
+    try:
+        with open(host_script, "w", encoding=plan["enc"], newline=plan["newline"]) as f:
+            f.write(plan["wrap"](a["script"]))
+        await vmrun.copy_to_guest(path, host_script, plan["script"], user=user, password=password)
+        if no_wait:
+            await vmrun.run_program(path, plan["program"], plan["run_args"], no_wait=True, user=user, password=password)
+            result["note"] = ("no_wait：作业已启动，不等待不收集；用 vmrun_wait_file 等 output_guest_path 出现，"
+                              "vmrun_read_file 取结果，收尾 vmrun_rm 清理 script/output 两个 guest 临时文件")
+            return result
+        try:
+            await vmrun.run_program(path, plan["program"], plan["run_args"], user=user, password=password)
+        except ToolError as e:
+            raise ToolError(
+                str(e), tool="vmrun_run_job",
+                hint=(f"执行等待失败/超时，脚本可能仍在 guest 后台继续：稍后 vmrun_wait_file 等 {plan['out']}，"
+                      f"再 vmrun_read_file 取结果（guest 临时文件已保留供取回）"),
+            ) from e
+        await vmrun.copy_from_guest(path, plan["out"], host_out, user=user, password=password)
+        with open(host_out, "rb") as f:
+            raw = f.read()
+        text = decode_output(raw)
+        result["stdout_bytes"] = len(raw)
+        idx = text.rfind(_JOB_RC_MARK)
+        if idx != -1:
+            try:
+                result["exit_code"] = int(text[idx + len(_JOB_RC_MARK):].splitlines()[0].strip())
+            except (IndexError, ValueError):
+                pass
+            text = text[:idx].rstrip("\r\n")
+        result["stdout"] = text
+        if result["exit_code"] is None:
+            result["hint"] = "输出中未找到退出码标记：作业可能未跑完（可用 vmrun_read_file 直读 output_guest_path 复核）"
+        cleanup_failed = []
+        for p in (plan["script"], plan["out"]):
+            try:
+                await vmrun.delete_file(path, p, user=user, password=password)
+            except ToolError as e:
+                cleanup_failed.append(f"{p}: {e}")
+        if cleanup_failed:
+            result["cleanup_failed"] = cleanup_failed
+        return result
+    finally:
+        for p in (host_script, host_out):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
+async def _h_vmrun_read_file(a, vmx):
+    vmrun = get_vmrun()
+    path = await vmx(a["vm_id"])
+    cap = env_int("VMWARE_READ_FILE_KB", 256) * 1024
+    host_tmp = _job_host_temp(f"vmread-{_new_job_id()}.bin")
+    try:
+        await vmrun.copy_from_guest(path, a["path"], host_tmp, user=a.get("user", ""), password=a.get("password", ""))
+        with open(host_tmp, "rb") as f:
+            raw = f.read(cap + 1)
+        total = os.path.getsize(host_tmp)
+    finally:
+        try:
+            os.unlink(host_tmp)
+        except OSError:
+            pass
+    if b"\x00" in raw[:8192]:
+        raise ToolError(
+            f"binary file: {a['path']}", tool="vmrun_read_file",
+            hint="内容含 NUL，疑似二进制文件；请用 vmrun_copy_from 拷回宿主处理",
+        )
+    return {"ok": True, "path": a["path"], "bytes": total,
+            "truncated": total > cap, "content": decode_output(raw[:cap])}
+
+
+async def _h_vmrun_wait_file(a, vmx):
+    vmrun = get_vmrun()
+    path = await vmx(a["vm_id"])
+    user, password = a.get("user", ""), a.get("password", "")
+    timeout_s = min(float(a.get("timeout_s") or 25), 600.0)
+    interval_s = max(float(a.get("interval_s") or 2), 0.05)
+    started = time.monotonic()
+    polls, last = 0, ""
+    while True:
+        polls += 1
+        try:
+            await vmrun.file_exists(path, a["path"], user=user, password=password)
+            return {"ok": True, "exists": True, "path": a["path"],
+                    "waited_ms": int((time.monotonic() - started) * 1000), "polls": polls}
+        except ToolError as e:
+            last = str(e)
+        if polls == 1:
+            low = last.lower()
+            if any(k in low for k in ("password", "tools", "not running", "vmx", "invalid")):
+                raise ToolError(
+                    last, tool="vmrun_wait_file",
+                    hint="首次探测即失败且非「文件不存在」类错误（凭据/Tools/VMX 问题不会因等待好转）；请先 vm_health 自检",
+                )
+        elapsed = time.monotonic() - started
+        if elapsed >= timeout_s:
+            return {"ok": False, "exists": False, "path": a["path"],
+                    "waited_ms": int(elapsed * 1000), "polls": polls,
+                    "hint": f"等待超时文件仍未出现（最后一次错误：{last[:120]}）；作业可能未产出或已失败，可用 vmrun_ps 复核 guest 进程"}
+        await asyncio.sleep(min(interval_s, max(0.05, timeout_s - elapsed)))
+
+
 _ADAPTERS = {"c": get_client, "r": get_vmrun, "l": get_vmcli}
 
 
@@ -759,6 +938,9 @@ _HANDLERS.update({
     "vm_folder_create": _h_vm_folder_create,
     "network_create": _h_network_create,
     "network_portforward_set": _h_network_portforward_set,
+    "vmrun_run_job": _h_vmrun_run_job,
+    "vmrun_read_file": _h_vmrun_read_file,
+    "vmrun_wait_file": _h_vmrun_wait_file,
 })
 
 @server.call_tool()
