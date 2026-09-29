@@ -14,3 +14,4 @@ venv/
 # 本地工作杂项
 bench-str
 .zcode/
+benchmark/_bench_tmp/
