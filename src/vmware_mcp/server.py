@@ -638,8 +638,13 @@ def _job_plan(interpreter: str, job_id: str, guest_dir: str) -> dict:
         script, out = f"{base}/vmjob-{job_id}.sh", f"{base}/vmjob-{job_id}.out"
 
         def wrap(body):
-            return ('{\n' + body.rstrip('\n') + f'\n}} > "{out}" 2>&1\n'
-                    f'echo {_JOB_RC_MARK}$? >> "{out}"\n')
+            # 子 shell 包裹：用户脚本里的 exit 只退出子 shell，rc/$? 捕获后走标记通道；
+            # 重定向到 .part 完成后原子发布为最终名——wait_file 看到最终名即作业已完成
+            # （真机实测：{ } 块挡不住 exit，.part 半成品窗口也会被 wait_file 误报）
+            return ('(\n' + body.rstrip('\n') + f'\n) > "{out}.part" 2>&1\n'
+                    f'rc=$?\n'
+                    f'echo {_JOB_RC_MARK}$rc >> "{out}.part"\n'
+                    f'mv "{out}.part" "{out}"\n')
 
         return {"kind": "posix", "program": _POSIX_INTERPRETERS[interp], "run_args": [script],
                 "script": script, "out": out, "wrap": wrap,
@@ -650,8 +655,12 @@ def _job_plan(interpreter: str, job_id: str, guest_dir: str) -> dict:
         script, out = f"{base}\\vmjob-{job_id}.cmd", f"{base}\\vmjob-{job_id}.out"
 
         def wrap(body):
-            return ('(\r\n' + body.rstrip('\r\n') + f'\r\n) > "{out}" 2>&1\r\n'
-                    f'echo {_JOB_RC_MARK}%errorlevel%>>"{out}"\r\n')
+            # call 子例程隔离：用户脚本 exit /b 只返回例程，%errorlevel% 走标记通道，主流程继续发布
+            return (f'call :__vmjob > "{out}.part" 2>&1\r\n'
+                    f'echo {_JOB_RC_MARK}%errorlevel%>>"{out}.part"\r\n'
+                    f'move /y "{out}.part" "{out}"\r\n'
+                    f'exit /b 0\r\n'
+                    f':__vmjob\r\n' + body.rstrip('\r\n') + '\r\nexit /b %errorlevel%\r\n')
 
         return {"kind": "cmd", "program": "cmd.exe", "run_args": ["/c", script],
                 "script": script, "out": out, "wrap": wrap,
@@ -710,12 +719,12 @@ async def _h_vmrun_run_job(a, vmx):
         result["stdout"] = text
         if result["exit_code"] is None:
             result["hint"] = "输出中未找到退出码标记：作业可能未跑完（可用 vmrun_read_file 直读 output_guest_path 复核）"
-        cleanup_failed = []
-        for p in (plan["script"], plan["out"]):
-            try:
-                await vmrun.delete_file(path, p, user=user, password=password)
-            except ToolError as e:
-                cleanup_failed.append(f"{p}: {e}")
+        cleanup_failed = [
+            f"{p}: {e}" for e in await asyncio.gather(
+                *(vmrun.delete_file(path, p, user=user, password=password) for p in (plan["script"], plan["out"])),
+                return_exceptions=True,
+            ) if isinstance(e, ToolError)
+        ]
         if cleanup_failed:
             result["cleanup_failed"] = cleanup_failed
         return result
@@ -737,6 +746,12 @@ async def _h_vmrun_read_file(a, vmx):
         with open(host_tmp, "rb") as f:
             raw = f.read(cap + 1)
         total = os.path.getsize(host_tmp)
+    except OSError as e:
+        # 真机实测：vmrun 对 guest 内符号链接等特殊文件报 OK 却不产生宿主文件（VIX 静默失败）
+        raise ToolError(
+            f"copy reported success but no host file appeared: {a['path']}", tool="vmrun_read_file",
+            hint="目标可能是 guest 内符号链接/特殊文件；请读真实文件，或用 vmrun_run_job 脚本 cat 该路径取内容",
+        ) from e
     finally:
         try:
             os.unlink(host_tmp)

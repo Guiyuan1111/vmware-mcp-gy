@@ -715,9 +715,10 @@ def test_run_job_success_parses_stdout_and_exit_code(monkeypatch, tmp_path):
     # 调用序列：上传→执行→回拷→清理×2
     assert [c[0] for c in fake.calls] == ["copy_to_guest", "run_program", "copy_from_guest", "delete_file", "delete_file"]
     assert fake.calls[1] == ("run_program", "/bin/bash", ("/tmp/vmjob-job001.sh",), False)
-    # 上传的是包装后脚本（重定向 + 退出码标记），不是裸脚本文本
-    assert b'"> "/tmp/vmjob-job001.out" 2>&1' in fake.uploaded.replace(b'"', b'"') or b"/tmp/vmjob-job001.out" in fake.uploaded
-    assert b"__JOB_RC=$?" in fake.uploaded
+    # 上传的是包装后脚本：子 shell 隔离 exit + .part 原子发布 + 退出码标记
+    assert b"(\n" in fake.uploaded and b"rc=$?" in fake.uploaded
+    assert b"mv \"/tmp/vmjob-job001.out.part\" \"/tmp/vmjob-job001.out\"" in fake.uploaded
+    assert b"__JOB_RC=$rc" in fake.uploaded
     assert b"echo hi" in fake.uploaded
     # 宿主临时文件已清理
     assert list(tmp_path.iterdir()) == []
@@ -839,3 +840,23 @@ def test_wait_file_infra_error_fails_fast(monkeypatch):
         raised = True
         assert "vm_health" in e.hint
     assert raised
+
+
+def test_read_file_silent_copy_failure_structured(monkeypatch, tmp_path):
+    # 真机踩点：VIX 对 guest 符号链接报 OK 但不落宿主文件 → 必须结构化报错而不是裸 FileNotFoundError
+    class _SilentFake(_FakeVMRunJob):
+        async def copy_from_guest(self, vmx, guest, host, user="", password=""):
+            self.calls.append(("copy_from_guest", guest, host))  # 不写文件，模拟静默失败
+
+    fake = _SilentFake()
+    monkeypatch.setattr(server, "get_vmrun", lambda: fake)
+    monkeypatch.setattr(server, "_new_job_id", lambda: "read04")
+    monkeypatch.setenv("VMWARE_HOST_TEMP_DIR", str(tmp_path))
+    try:
+        asyncio.run(server._h_vmrun_read_file({"vm_id": "D:/vms/a.vmx", "path": "/etc/os-release"}, _identity_vmx_test))
+        raised = False
+    except ToolError as e:
+        raised = True
+        assert "符号链接" in e.hint and "cat" in e.hint
+    assert raised
+    assert list(tmp_path.iterdir()) == []
