@@ -1307,7 +1307,7 @@
    ]
   },
   "result": [
-   "{\n  \"ok\": false,\n  \"image\": \"bench-str\",\n  \"error\": \"LoadImageError: cannot identify image file bench-str\",\n  \"hint\": \"图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）\"\n}"
+   "{\n  \"ok\": false,\n  \"image\": \"bench-str\",\n  \"error\": \"LoadImageError: bench-str does not exist.\",\n  \"hint\": \"图片不可读或 OCR 失败：检查截图文件是否有效（宿主锁屏时截屏可能全黑）\"\n}"
   ]
  },
  "serial_purge": {
