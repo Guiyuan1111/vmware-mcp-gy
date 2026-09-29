@@ -25,7 +25,7 @@
 
 ```bash
 git clone https://github.com/Guiyuan1111/vmware-mcp-gy.git
-cd vmware-mcp
+cd vmware-mcp-gy
 pip install -e .
 ```
 
@@ -141,37 +141,37 @@ vmrun 底层以 `-vp` 传递加密密码，三种入口（优先级从高到低�
 
 ## 变更历史（按版本倒序；工具数/测试数等为各版本发布时点的史实，当前状态以本文其余章节与 [`note/release/`](note/release/) 为准）
 
-## 0.4.2 变更（通道剖析 + 生命周期剖析）
+### 0.4.2 变更（通道剖析 + 生命周期剖析）
 
 - `vm_health` REST 快路径：REST vm_id 形态下 `running` 走 power_state 元数据（401 自动回退，字段语义不变）；`VMWARE_TOOLS=rest` 场景下 running 仍可诊断。真机 1.21x。
 - 新增基准：`bench_health_channels.py`（通道对照+回退验证）、`bench_lifecycle.py`（冷启动分解）。
 - 剖析结论：冷启动 ~900ms 中 mcp SDK import 占 756ms（硬依赖不可避）；`vmrest /ip` 底层同为 VIX 无收益（409 对关机 VM）；性能线封版依据见 [`note/report/perf/2026-09-29-health-rest-fastpath-0.4.2.md`](note/report/perf/2026-09-29-health-rest-fastpath-0.4.2.md)。
 
-## 0.4.1 变更（工具面作用域）
+### 0.4.1 变更（工具面作用域）
 
 - 新增 `VMWARE_TOOLS`（rest/vmrun/vmcli/core 逗号组合，缺省全量）：按家族裁剪工具列表与调用面，vmrun 作用域 56 工具/48% 负载；core 诊断工具任何作用域保留，域外调用入口即拒。
 - 新增 `benchmark/protocol_conformance.py`：stdio JSON-RPC 协议符合性门 9 项（stdout 零污染、dry-run 护栏经协议层在线等，无需 VMware）。
 
-## 0.4.0 变更（工作流组合工具）
+### 0.4.0 变更（工作流组合工具）
 
 - 新增 `vmrun_run_job` / `vmrun_read_file` / `vmrun_wait_file`：把真实会话中最高频的多连调用合并为单次（三连 3 回合→1 回合等），直接返回 stdout+exit_code；见上方「工作流组合工具」节。
 - 描述修正：`vmrun_run`/`vmrun_script` 明示不捕获 stdout；`vmrun_copy_dir_to/from` 加「多于 3 个文件优先用我」触发条件。
 - 新 env：`VMWARE_HOST_TEMP_DIR`、`VMWARE_READ_FILE_KB`。
 - 依据：647 次历史调用记录分析 + RHEL-10 真机三轮迭代验证（原子发布/exit 隔离/符号链接检测）；基准 `benchmark/bench_workflow.py`，报告 [`note/report/perf/2026-09-29-workflow-composite-0.4.0.md`](note/report/perf/2026-09-29-workflow-composite-0.4.0.md)。
 
-## 0.3.2 变更（性能第二期）
+### 0.3.2 变更（性能第二期）
 
 - `vm_health` / `vm_resolve` 内部并发化：互不依赖的只读探测并发执行，真实 vmrun 实测 vm_health **2.4x**（1021→421ms）；结果与调用序列经专项单测+黄金快照锁定不变。
 - `VMWARE_COMPACT_OUTPUT=1`（可选）：成功路径 JSON 紧凑输出省 ~25% token；默认关闭时输出与 0.3.1 逐字节一致。
 - 详见 [`note/report/perf/`](note/report/perf/)。
 
-## 0.3.1 变更（性能优化）
+### 0.3.1 变更（性能优化）
 
 - `tools/list` 工具表进程内缓存：每次枚举 411.7 µs → 0.1 µs（4117x），输出字节级一致。
 - `call_tool` 分发链 → 137 项路由表（性能中性、架构收口：圈复杂度 136 → 约 10）；分发行为经黄金快照 138/138 逐字节校验。
 - 实测：真实 vmrun 16 路并发 5.1x 加速（16/16 无串扰）；REST 连接复用 50 → 1 TCP 连接（墙钟 11.0x）。基准程序见 [`benchmark/`](benchmark/)，对比报告见 [`note/report/perf/`](note/report/perf/)。
 
-## 0.3.0 变更
+### 0.3.0 变更
 
 - **安全护栏**：`VMWARE_READ_ONLY` 全局只读开关、破坏性工具 confirm/dry-run 二次确认、工具列表 annotations（只读/破坏性提示）；工具面零破坏——`confirm` 为可选新增参数，不传时行为变为 dry-run（严格说这是安全语义修正，见 release note）。
 - **性能**：REST 走进程级 httpx 连接池（复用 TCP 连接）；vmrun/vmcli 子进程并发上限（`VMWARE_MAX_CONCURRENCY`，默认 8）；超长输出自动截断（`VMWARE_MAX_OUTPUT`，默认 20000 字符）。
